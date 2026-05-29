@@ -31,10 +31,30 @@ class ControlPanel(tk.Frame):
                  on_initial_solution=None,**kwargs):
 
         super().__init__(parent, bg=COLORS['panel'], width=240,
-                         highlightbackground=COLORS['panel_border'],
-                         highlightthickness=1, **kwargs)
+                     highlightbackground=COLORS['panel_border'],
+                     highlightthickness=1, **kwargs)
         self.pack_propagate(False)
 
+        # ── scrollable inner frame ────────────────────────────────────────
+        canvas = tk.Canvas(self, bg=COLORS['panel'],
+                        highlightthickness=0, width=224)
+        scrollbar = ttk.Scrollbar(self, orient='vertical', command=canvas.yview)
+        self._inner = tk.Frame(canvas, bg=COLORS['panel'])
+
+        self._inner.bind('<Configure>',
+                        lambda e: canvas.configure(
+                            scrollregion=canvas.bbox('all')))
+        canvas.create_window((0, 0), window=self._inner, anchor='nw')
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        scrollbar.pack(side='right', fill='y')
+        canvas.pack(side='left', fill='both', expand=True)
+
+        canvas.bind_all('<MouseWheel>',
+                        lambda e: canvas.yview_scroll(
+                            -1 * (e.delta // 120), 'units'))
+        # ─────────────────────────────────────────────────────────────────
+        
         self._on_search                = on_search
         self._on_reset                 = on_reset
         self._fonts                    = fonts
@@ -60,14 +80,14 @@ class ControlPanel(tk.Frame):
         # ── método de busca ──────────────────────────────────────────────────
         self._section('▸ MÉTODO DE BUSCA')
         self.method_var = tk.StringVar(value=SEARCH_METHODS[0])
-        method_cb = ttk.Combobox(self, textvariable=self.method_var,
+        method_cb = ttk.Combobox(self._inner, textvariable=self.method_var,
                                  values=SEARCH_METHODS, state='readonly',
                                  width=26, font=self._fonts['mono'])
         method_cb.pack(**pad, fill='x')
         method_cb.bind('<<ComboboxSelected>>', self._on_method_change)
 
         # ── parâmetro tmax (Encosta com Tentativa) ───────────────────────────
-        self._tmax_frame = tk.Frame(self, bg=COLORS['panel'])
+        self._tmax_frame = tk.Frame(self._inner, bg=COLORS['panel'])
         self._tmax_frame.pack(**pad, fill='x')
         tk.Label(self._tmax_frame, text='Tentativas (tmax):',
                  font=self._fonts['section'],
@@ -83,7 +103,7 @@ class ControlPanel(tk.Frame):
         self._tmax_frame.pack_forget()
 
         # ── parâmetros têmpera ───────────────────────────────────────────────
-        self._tempera_frame = tk.Frame(self, bg=COLORS['panel'])
+        self._tempera_frame = tk.Frame(self._inner, bg=COLORS['panel'])
         self._tempera_frame.pack(**pad, fill='x')
 
         for label, var_name, default, mn, mx, inc, fmt in [
@@ -106,7 +126,7 @@ class ControlPanel(tk.Frame):
         self._tempera_frame.pack_forget()
 
         # ── parâmetros algoritmo genético ────────────────────────────────────
-        self._ag_frame = tk.Frame(self, bg=COLORS['panel'])
+        self._ag_frame = tk.Frame(self._inner, bg=COLORS['panel'])
         self._ag_frame.pack(**pad, fill='x')
 
         for label, var_name, default, mn, mx, inc, fmt, tipo in [
@@ -136,7 +156,7 @@ class ControlPanel(tk.Frame):
         # ── capacidade máxima (tempo limite) ────────────────────────────────
         self._divider()
         self._section('▸ CAPACIDADE')
-        cap_frame = tk.Frame(self, bg=COLORS['panel'])
+        cap_frame = tk.Frame(self._inner, bg=COLORS['panel'])
         cap_frame.pack(padx=16, pady=(0, 4), fill='x')
         tk.Label(cap_frame, text='Tempo limite (s):',
                  font=self._fonts['section'],
@@ -153,7 +173,7 @@ class ControlPanel(tk.Frame):
         # ── estado inicial ────────────────────────────────────────────────────
         self._divider()
         self._section('▸ ESTADO INICIAL')
-        start_row = tk.Frame(self, bg=COLORS['panel'])
+        start_row = tk.Frame(self._inner, bg=COLORS['panel'])
         start_row.pack(padx=16, pady=(0, 4), fill='x')
         self.start_var = tk.StringVar(value=config.STATES[0])
         self.start_var.trace_add('write', self._on_state_change)
@@ -173,7 +193,7 @@ class ControlPanel(tk.Frame):
 
         # ── estado objetivo ───────────────────────────────────────────────────
         self._section('▸ ESTADO OBJETIVO')
-        goal_row = tk.Frame(self, bg=COLORS['panel'])
+        goal_row = tk.Frame(self._inner, bg=COLORS['panel'])
         goal_row.pack(padx=16, pady=(0, 4), fill='x')
         self.goal_var = tk.StringVar(value=config.STATES[-1])
         self.goal_var.trace_add('write', self._on_state_change)
@@ -194,7 +214,7 @@ class ControlPanel(tk.Frame):
         # ── botões de ação ────────────────────────────────────────────────────
         self._divider()
 
-        tk.Button(self, text='⬡  SOLUÇÃO INICIAL',
+        tk.Button(self._inner, text='⬡  SOLUÇÃO INICIAL',
           font=self._fonts['section'],
           bg=COLORS['panel_border'], fg=COLORS['text_dim'],
           activebackground=COLORS['node_default'],
@@ -203,7 +223,7 @@ class ControlPanel(tk.Frame):
           command=self._fire_initial_solution, pady=6,
           ).pack(padx=16, pady=(0, 4), fill='x')
 
-        tk.Button(self, text='▶  EXECUTAR BUSCA',
+        tk.Button(self._inner, text='▶  EXECUTAR BUSCA',
                   font=self._fonts['section'],
                   bg=COLORS['accent'], fg='#ffffff',
                   activebackground='#6AAAF8', activeforeground='#ffffff',
@@ -211,7 +231,7 @@ class ControlPanel(tk.Frame):
                   command=self._fire_search, pady=8,
                   ).pack(padx=16, pady=(8, 4), fill='x')
 
-        tk.Button(self, text='↺  LIMPAR',
+        tk.Button(self._inner, text='↺  LIMPAR',
                   font=self._fonts['section'],
                   bg=COLORS['node_default'], fg=COLORS['text_dim'],
                   activebackground=COLORS['panel_border'],
@@ -221,7 +241,7 @@ class ControlPanel(tk.Frame):
                   ).pack(padx=16, pady=(0, 4), fill='x')
 
         if self._on_regenerate:
-            tk.Button(self, text='⟳  NOVO MAPA',
+            tk.Button(self._inner, text='⟳  NOVO MAPA',
                       font=self._fonts['section'],
                       bg=COLORS['panel_border'], fg=COLORS['warning'],
                       activebackground=COLORS['node_default'],
@@ -233,7 +253,7 @@ class ControlPanel(tk.Frame):
         # ── animação ──────────────────────────────────────────────────────────
         self._divider()
         self.animate_var = tk.BooleanVar(value=True)
-        tk.Checkbutton(self, text='Animação do caminho',
+        tk.Checkbutton(self._inner, text='Animação do caminho',
                        variable=self.animate_var,
                        font=self._fonts['section'],
                        bg=COLORS['panel'], fg=COLORS['text_dim'],
@@ -244,7 +264,7 @@ class ControlPanel(tk.Frame):
         
         # ── análise comparativa ───────────────────────────────────────────────
         self._divider()
-        tk.Button(self, text='◈  ANÁLISE COMPARATIVA',
+        tk.Button(self._inner, text='◈  ANÁLISE COMPARATIVA',
                   font=self._fonts['section'],
                   bg=COLORS['panel_border'], fg=COLORS['accent'],
                   activebackground=COLORS['node_default'],
@@ -258,7 +278,7 @@ class ControlPanel(tk.Frame):
             self._divider()
             self._section('▸ MULTIVERSO')
 
-            mv_grid = tk.Frame(self, bg=COLORS['panel'])
+            mv_grid = tk.Frame(self._inner, bg=COLORS['panel'])
             mv_grid.pack(padx=16, pady=(0, 4), fill='x')
 
             tk.Label(mv_grid, text='Nº de mapas:',
@@ -289,7 +309,7 @@ class ControlPanel(tk.Frame):
                        ).grid(row=1, column=1, sticky='w', padx=(8, 0), pady=2)
 
             self._gen_mv_btn = tk.Button(
-                self, text='🌀  GERAR MULTIVERSO',
+                self._inner, text='🌀  GERAR MULTIVERSO',
                 font=self._fonts['section'],
                 bg=COLORS['accent2'], fg='#ffffff',
                 activebackground='#FAAB50', activeforeground='#ffffff',
@@ -309,7 +329,7 @@ class ControlPanel(tk.Frame):
             )
 
             self._divider()
-            tk.Button(self, text='◈  LEGENDA / TERRENOS',
+            tk.Button(self._inner, text='◈  LEGENDA / TERRENOS',
                       font=self._fonts['section'],
                       bg=COLORS['panel_border'], fg=COLORS['text_dim'],
                       activebackground=COLORS['node_default'],
@@ -413,12 +433,12 @@ class ControlPanel(tk.Frame):
     # ── helpers ──────────────────────────────────────────────────────────────
 
     def _section(self, text: str):
-        tk.Label(self, text=text, font=self._fonts['section'],
+        tk.Label(self._inner, text=text, font=self._fonts['section'],
                  bg=COLORS['panel'], fg=COLORS['accent2'],
                  anchor='w').pack(padx=16, pady=(10, 2), fill='x')
 
     def _divider(self):
-        tk.Frame(self, bg=COLORS['panel_border'], height=1).pack(
+        tk.Frame(self._inner, bg=COLORS['panel_border'], height=1).pack(
             fill='x', padx=12, pady=6)
 
     def _clear(self, _event=None):

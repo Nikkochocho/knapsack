@@ -343,8 +343,10 @@ class SearchApp(tk.Tk):
 
         desc_text = (
             'Visualizador interativo de algoritmos de busca local e AGs em inteligência artificial. '
-            'O grid é gerado proceduralmente e percorrido por estratégias de busca '
+            'O grid é gerado proceduralmente e percorrido por estratégias de otimização de solução '
             'para comparação de custo, profundidade e ganho em tempo real.'
+            'Este projeto contém também uma análise comparativa, mostrando diferenças de ganho entre'
+            'os diferentes algoritmos de otimização.'
         )
         tk.Label(main_frame, text=desc_text,
                  font=self._fonts['label'],

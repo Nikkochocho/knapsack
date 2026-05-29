@@ -264,7 +264,7 @@ COLORS: dict[str, str] = {
 WINDOW = {
     'title':      'Visualizador interativo de algoritmos de busca — Mochila',
     'width':      1420,
-    'height':     1040,
+    'height':     900,
     'min_width':  900,
     'min_height': 620,
 }
