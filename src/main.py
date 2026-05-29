@@ -69,6 +69,7 @@ class SearchApp(tk.Tk):
             on_pick_goal=lambda: self.graph_canvas.set_pick_mode('goal'),
             on_regenerate_multiverse=self._handle_regenerate_multiverse,
             on_exit_multiverse=self._exit_multiverse,
+            on_comparative=self._open_comparative,
             fonts=self._fonts,
         )
         self.control.pack(side='left', fill='y', padx=(8, 4), pady=8)
@@ -93,6 +94,9 @@ class SearchApp(tk.Tk):
         self.control.animate_var.trace_add(
             'write', lambda *_: self.graph_canvas.set_animate(
                 self.control.animate_var.get()))
+        self.control.tempo_limite_var.trace_add(
+            'write', lambda *_: setattr(config, 'TEMPO_LIMITE',
+                                        self.control.tempo_limite_var.get()))
 
         self.result = ResultPanel(body, fonts=self._fonts)
         self.result.pack(side='right', fill='y', padx=(4, 8), pady=8)
@@ -133,9 +137,8 @@ class SearchApp(tk.Tk):
     # ── callbacks ─────────────────────────────────────────────────────────────
 
     def _handle_search(self, method: str, start: str, goal: str,
-                   depth_limit: int, heuristic_name: str = 'manhattan',
-                   tmax: int = 20, t1: float = 100.0,
-                   tf: float = 0.1, fr: float = 0.95,
+                   tmax: int = 20, 
+                   t1: float = 100.0, tf: float = 0.1, fr: float = 0.95,
                    tempo_limite: float = 10.0,
                    tp=10, ng=20, tc=0.8, tm=0.1, ig=0.2):
 
@@ -150,19 +153,11 @@ class SearchApp(tk.Tk):
 
         graph = config.SUPER_GRAPH if config.MULTIVERSE_MODE else config.GRAPH
 
-        if config.MULTIVERSE_MODE and heuristic_name == 'manhattan':
-            effective_heuristic = 'euclidiana'
-        else:
-            effective_heuristic = heuristic_name
-
         result = run_search(
             method=method,
             start=start,
             goal=goal,
             graph=graph,
-            heuristic=heuristic_name,
-            depth_limit=depth_limit,
-            heuristic_name=effective_heuristic,
             tmax=tmax,
             t1=t1,
             tf=tf,
@@ -297,6 +292,10 @@ class SearchApp(tk.Tk):
         start = self.control.start_var.get()
         goal  = self.control.goal_var.get()
         self.graph_canvas.render(start=start, goal=goal)
+
+    def _open_comparative(self):
+            from ui.comparative_window import ComparativeWindow
+            ComparativeWindow(self, self._fonts)
 
     # ── Sobre ─────────────────────────────────────────────────────────────────
 

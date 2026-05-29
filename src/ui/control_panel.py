@@ -10,6 +10,8 @@ import tkinter as tk
 from tkinter import ttk
 import config
 from config import COLORS, SEARCH_METHODS
+from ui.comparative_window import ComparativeWindow
+
 
 # métodos que mostram tmax
 TMAX_METHODS  = {'Subida de Encosta (Tentativa)'}
@@ -24,7 +26,8 @@ class ControlPanel(tk.Frame):
                  on_regenerate=None, on_clear_path=None, on_clear_result=None,
                  on_pick_start=None, on_pick_goal=None,
                  on_regenerate_multiverse=None,
-                 on_exit_multiverse=None, **kwargs):
+                 on_exit_multiverse=None, 
+                 on_comparative=None,**kwargs):
 
         super().__init__(parent, bg=COLORS['panel'], width=240,
                          highlightbackground=COLORS['panel_border'],
@@ -41,6 +44,7 @@ class ControlPanel(tk.Frame):
         self._on_pick_goal             = on_pick_goal
         self._on_regenerate_multiverse = on_regenerate_multiverse
         self._on_exit_multiverse       = on_exit_multiverse
+        self._on_comparative = on_comparative
         self._pick_btns: dict[str, tk.Button] = {}
         self._legend_imgs = []
         self._build()
@@ -226,6 +230,17 @@ class ControlPanel(tk.Frame):
                        selectcolor=COLORS['node_default'],
                        relief='flat', cursor='hand2',
                        ).pack(padx=16, pady=(0, 4), anchor='center')
+        
+        # ── análise comparativa ───────────────────────────────────────────────
+        self._divider()
+        tk.Button(self, text='◈  ANÁLISE COMPARATIVA',
+                  font=self._fonts['section'],
+                  bg=COLORS['panel_border'], fg=COLORS['accent'],
+                  activebackground=COLORS['node_default'],
+                  activeforeground=COLORS['accent'],
+                  relief='flat', cursor='hand2',
+                  command=self._fire_comparative, pady=6,
+                  ).pack(padx=16, pady=(0, 4), fill='x')
 
         # ── seção multiverso ──────────────────────────────────────────────────
         if self._on_regenerate_multiverse:
@@ -327,8 +342,6 @@ class ControlPanel(tk.Frame):
             method=method,
             start=self.start_var.get(),
             goal=self.goal_var.get(),
-            depth_limit=None,
-            heuristic_name=None,
             tmax=self.tmax_var.get(),
             t1=self._t1_var.get(),
             tf=self._tf_var.get(),
@@ -355,6 +368,12 @@ class ControlPanel(tk.Frame):
         self._exit_mv_btn.pack_forget()
         if self._on_exit_multiverse:
             self._on_exit_multiverse()
+
+    def _fire_comparative(self):
+        if self._on_comparative:
+            self._on_comparative()
+        else:
+            ComparativeWindow(self.winfo_toplevel(), self._fonts)
 
     def _on_state_change(self, *_):
         config.START_NODE = self.start_var.get()

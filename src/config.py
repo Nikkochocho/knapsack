@@ -173,7 +173,7 @@ GOAL_NODE:      str               = "(14,14)"
 NODE_POSITIONS: dict              = {}
 ACTIVE_METHOD:  str               = ''
 LAST_VELOCITY:  float             = 1.0  
-TEMPO_LIMITE:   float             = 0.0
+TEMPO_LIMITE:   float             = 10.0
 GOAL_REACHED:   bool              = True
 
 FATORES: dict[str, float] = {
@@ -264,7 +264,7 @@ COLORS: dict[str, str] = {
 WINDOW = {
     'title':      'Visualizador interativo de algoritmos de busca — Mochila',
     'width':      1420,
-    'height':     920,
+    'height':     980,
     'min_width':  900,
     'min_height': 620,
 }

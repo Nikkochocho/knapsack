@@ -25,23 +25,21 @@ LOCAL_SEARCH_METHODS = {
     'Subida de Encosta',
     'Subida de Encosta (Tentativa)',
     'Têmpera Simulada',
-    'Algoritmo Genético',   # ← adiciona
+    'Algoritmo Genético',   
 }
 
 def run_search(method: str, start: str, goal: str,
-               graph: dict, heuristic: dict,
-               depth_limit: int = None,
-               heuristic_name: str = None,
+               graph: dict,
                tmax: int = 20,
                t1: float = 100.0,
                tf: float = 0.1,
                fr: float = 0.95,
                tempo_limite: float = 10.0,
-               tp: int = 10,        # ← adiciona
-               ng: int = 20,        # ← adiciona
-               tc: float = 0.8,     # ← adiciona
-               tm: float = 0.1,     # ← adiciona
-               ig: float = 0.2,     # ← adiciona
+               tp: int = 10,        
+               ng: int = 20,        
+               tc: float = 0.8,    
+               tm: float = 0.1,     
+               ig: float = 0.2,    
                ) -> SearchResult:
 
     fn = REGISTRY.get(method)
