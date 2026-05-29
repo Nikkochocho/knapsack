@@ -99,8 +99,8 @@ class ResultPanel(tk.Frame):
 
         profit = result.profit
         self._profit_lbl.config(
-            text=f'+{profit}' if profit > 0 else str(profit),
-            fg=COLORS['accent'] if profit > 0 else COLORS['danger'],
+            text=f'+{profit}' if profit and profit > 0 else (str(profit) if profit is not None else '—'),
+            fg=COLORS['accent'] if profit and profit > 0 else (COLORS['danger'] if profit is not None else COLORS['text_dim']),
         )
 
         self._path_text.config(state='normal')

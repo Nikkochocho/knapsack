@@ -11,12 +11,14 @@ from    PIL         import Image, ImageTk
 from    pathlib     import Path
 
 import  config
-from    config           import COLORS, WINDOW
-from    algorithms       import run_search
-from    multiverse       import generate_multiverse
-from    ui.graph_canvas  import GraphCanvas
-from    ui.control_panel import ControlPanel
-from    ui.result_panel  import ResultPanel
+from    config                      import COLORS, WINDOW
+from    algorithms                  import run_search
+from    multiverse                  import generate_multiverse
+from    ui.graph_canvas             import GraphCanvas
+from    ui.control_panel            import ControlPanel
+from    ui.result_panel             import ResultPanel
+from    algorithms.initial_solution import handle_initial_solution
+
 
 
 class SearchApp(tk.Tk):
@@ -70,6 +72,7 @@ class SearchApp(tk.Tk):
             on_regenerate_multiverse=self._handle_regenerate_multiverse,
             on_exit_multiverse=self._exit_multiverse,
             on_comparative=self._open_comparative,
+            on_initial_solution=self._handle_initial_solution,
             fonts=self._fonts,
         )
         self.control.pack(side='left', fill='y', padx=(8, 4), pady=8)
@@ -296,6 +299,9 @@ class SearchApp(tk.Tk):
     def _open_comparative(self):
             from ui.comparative_window import ComparativeWindow
             ComparativeWindow(self, self._fonts)
+
+    def _handle_initial_solution(self):
+        handle_initial_solution(self)
 
     # ── Sobre ─────────────────────────────────────────────────────────────────
 

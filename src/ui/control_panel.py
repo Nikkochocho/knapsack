@@ -27,7 +27,8 @@ class ControlPanel(tk.Frame):
                  on_pick_start=None, on_pick_goal=None,
                  on_regenerate_multiverse=None,
                  on_exit_multiverse=None, 
-                 on_comparative=None,**kwargs):
+                 on_comparative=None,
+                 on_initial_solution=None,**kwargs):
 
         super().__init__(parent, bg=COLORS['panel'], width=240,
                          highlightbackground=COLORS['panel_border'],
@@ -44,7 +45,8 @@ class ControlPanel(tk.Frame):
         self._on_pick_goal             = on_pick_goal
         self._on_regenerate_multiverse = on_regenerate_multiverse
         self._on_exit_multiverse       = on_exit_multiverse
-        self._on_comparative = on_comparative
+        self._on_comparative           = on_comparative
+        self._on_initial_solution      = on_initial_solution
         self._pick_btns: dict[str, tk.Button] = {}
         self._legend_imgs = []
         self._build()
@@ -191,6 +193,15 @@ class ControlPanel(tk.Frame):
 
         # ── botões de ação ────────────────────────────────────────────────────
         self._divider()
+
+        tk.Button(self, text='⬡  SOLUÇÃO INICIAL',
+          font=self._fonts['section'],
+          bg=COLORS['panel_border'], fg=COLORS['text_dim'],
+          activebackground=COLORS['node_default'],
+          activeforeground=COLORS['text'],
+          relief='flat', cursor='hand2',
+          command=self._fire_initial_solution, pady=6,
+          ).pack(padx=16, pady=(0, 4), fill='x')
 
         tk.Button(self, text='▶  EXECUTAR BUSCA',
                   font=self._fonts['section'],
@@ -374,6 +385,10 @@ class ControlPanel(tk.Frame):
             self._on_comparative()
         else:
             ComparativeWindow(self.winfo_toplevel(), self._fonts)
+
+    def _fire_initial_solution(self):
+        if self._on_initial_solution:
+            self._on_initial_solution()
 
     def _on_state_change(self, *_):
         config.START_NODE = self.start_var.get()
