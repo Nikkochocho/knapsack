@@ -13,6 +13,7 @@ import config
 from config import COLORS
 from algorithms import run_search
 from multiverse import generate_multiverse
+from ui.report_exporter import export_report
 
 
 # ── paleta de cores para as barras do gráfico ─────────────────────────────────
@@ -520,18 +521,47 @@ class ResultsWindow(tk.Toplevel):
         h.pack(fill='x')
         h.pack_propagate(False)
         tk.Label(h, text=f'◈  COMPARATIVA DOS ALGORITMOS  —  LIMITE {config.TEMPO_LIMITE:.0f}s',
-                 font=self._fonts['title'],
-                 bg=COLORS['panel'], fg=COLORS['accent'],
-                 ).pack(side='left', padx=20, pady=10)
+                font=self._fonts['title'],
+                bg=COLORS['panel'], fg=COLORS['accent'],
+                ).pack(side='left', padx=20, pady=10)
         tk.Button(h, text='✕  Fechar',
-                  font=self._fonts['label'],
-                  bg=COLORS['panel'], fg=COLORS['text_dim'],
-                  activebackground='#c0392b', activeforeground='#ffffff',
-                  relief='flat', cursor='hand2', padx=14, pady=4,
-                  command=self.destroy,
-                  ).pack(side='right', padx=(4, 16), pady=8)
+                font=self._fonts['label'],
+                bg=COLORS['panel'], fg=COLORS['text_dim'],
+                activebackground='#c0392b', activeforeground='#ffffff',
+                relief='flat', cursor='hand2', padx=14, pady=4,
+                command=self.destroy,
+                ).pack(side='right', padx=(4, 16), pady=8)
+        tk.Button(h, text='⬇  EXPORTAR PDF',
+                font=self._fonts['label'],
+                bg=COLORS['panel'], fg=COLORS['accent'],
+                activebackground=COLORS['accent'], activeforeground='#ffffff',
+                relief='flat', cursor='hand2', padx=14, pady=4,
+                command=self._export_pdf,
+                ).pack(side='right', padx=(4, 4), pady=8)
 
-        body = tk.Frame(self, bg=COLORS['bg'])
+        # ── scrollable body ───────────────────────────────────────────────
+        outer = tk.Frame(self, bg=COLORS['bg'])
+        outer.pack(fill='both', expand=True)
+
+        canvas = tk.Canvas(outer, bg=COLORS['bg'], highlightthickness=0)
+        scrollbar = ttk.Scrollbar(outer, orient='vertical', command=canvas.yview)
+        scroll_frame = tk.Frame(canvas, bg=COLORS['bg'])
+
+        scroll_frame.bind('<Configure>',
+                        lambda e: canvas.configure(
+                            scrollregion=canvas.bbox('all')))
+        canvas.create_window((0, 0), window=scroll_frame, anchor='nw')
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        canvas.pack(side='left', fill='both', expand=True)
+        scrollbar.pack(side='right', fill='y')
+
+        canvas.bind_all('<MouseWheel>',
+                        lambda e: canvas.yview_scroll(
+                            -1 * (e.delta // 120), 'units'))
+        # ─────────────────────────────────────────────────────────────────
+
+        body = tk.Frame(scroll_frame, bg=COLORS['bg'])
         body.pack(fill='both', expand=True, padx=16, pady=12)
 
         self._build_table(body)
@@ -620,6 +650,7 @@ class ResultsWindow(tk.Toplevel):
                        highlightbackground=COLORS['panel_border'],
                        highlightthickness=1)
         cv.pack(fill='x', pady=(0, 8))
+        self._chart_canvas = cv 
 
         max_val = max(v for _, v in data) if data else 1
         max_val = max(max_val, 1)                 # evita divisão por zero
@@ -682,6 +713,9 @@ class ResultsWindow(tk.Toplevel):
         cv.create_line(PAD_L, PAD_T,
                        PAD_L, PAD_T + plot_h,
                        fill=COLORS['panel_border'], width=1)
+        
+    def _export_pdf(self):
+        export_report(self._results)
 
     # ── center ────────────────────────────────────────────────────────────────
 
