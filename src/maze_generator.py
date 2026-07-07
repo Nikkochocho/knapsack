@@ -1,7 +1,7 @@
 """
 maze_generator.py
 =================
-Geração procedural de mapas de grid aberto.
+Procedural generation of open-grid maps.
 """
 
 from    __future__  import annotations
@@ -11,21 +11,21 @@ from    typing      import Optional
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Tipos de terreno
+# Terrain types
 # ─────────────────────────────────────────────────────────────────────────────
 
 @dataclass(frozen=True)
 class TerrainType:
     name: str
     weight: float
-    probability: float   # deve somar 1.0 no conjunto escolhido
+    probability: float   # must sum to 1.0 across the chosen set
 
 
 TERRAINS: list[TerrainType] = [
-    TerrainType("plains",   1.0, 0.25),  # fator 1.0  — sem perda
-    TerrainType("forest",   2.0, 0.25),  # fator 0.5  — perde metade
-    TerrainType("swamp",    3.0, 0.25),  # fator 0.33 — perde 2/3
-    TerrainType("mountain", 5.0, 0.25),  # fator 0.2  — perde 4/5
+    TerrainType("plains",   1.0, 0.25),  # factor 1.0  — no loss
+    TerrainType("forest",   2.0, 0.25),  # factor 0.5  — loses half
+    TerrainType("swamp",    3.0, 0.25),  # factor 0.33 — loses 2/3
+    TerrainType("mountain", 5.0, 0.25),  # factor 0.2  — loses 4/5
 ]
 
 TERRAIN_COUNTS: dict[str, int] = {
@@ -35,14 +35,14 @@ TERRAIN_COUNTS: dict[str, int] = {
     "mountain":  7,
 }
 
-# Validação simples
+# Simple validation
 assert abs(sum(t.probability for t in TERRAINS) - 1.0) < 1e-6, \
-    "Probabilidades dos terrenos devem somar 1.0"
+    "Terrain probabilities must sum to 1.0"
 
-EXTRA_EDGE_PROBABILITY: float = 0.75  # 0.0 = perfeito, 1.0 = remove todas as paredes
+EXTRA_EDGE_PROBABILITY: float = 0.75  # 0.0 = perfect maze, 1.0 = removes all walls
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Geração de terreno
+# Terrain generation
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _build_terrain_pool(
@@ -51,26 +51,26 @@ def _build_terrain_pool(
     counts: Optional[dict[str, int]] = None,
 ) -> list[TerrainType]:
     """
-    Monta um pool com quantidades exatas de cada terreno.
-    
-    Se counts for None, divide igualmente (resto vai para o primeiro terreno).
-    Exemplo: counts={"plains": 20, "forest": 15, "swamp": 10, "mountain": 5}
+    Build a pool with exact quantities of each terrain type.
+
+    If counts is None, splits evenly (remainder goes to the first terrain).
+    Example: counts={"plains": 20, "forest": 15, "swamp": 10, "mountain": 5}
     """
     terrain_map_by_name = {t.name: t for t in TERRAINS}
-    
+
     if counts is None:
         base = total_cells // len(TERRAINS)
         remainder = total_cells % len(TERRAINS)
         counts = {t.name: base for t in TERRAINS}
         counts[TERRAINS[0].name] += remainder
 
-    # Valida
+    # Validate
     assigned = sum(counts.values())
     assert assigned == total_cells, (
-        f"Soma dos counts ({assigned}) != total de células ({total_cells})"
+        f"Sum of counts ({assigned}) != total cells ({total_cells})"
     )
     assert all(name in terrain_map_by_name for name in counts), \
-        f"Nome de terreno inválido em counts. Válidos: {[t.name for t in TERRAINS]}"
+        f"Invalid terrain name in counts. Valid names: {[t.name for t in TERRAINS]}"
 
     pool: list[TerrainType] = []
     for name, qty in counts.items():
@@ -86,15 +86,16 @@ def _pick_from_pool(
     penalty: float = 0.15,
 ) -> TerrainType:
     """
-    Escolhe um terreno do pool penalizando tipos já nos vizinhos.
-    Remove e retorna o terreno escolhido do pool (in-place).
+    Pick a terrain from the pool, penalizing types already present among
+    the neighbors. Removes and returns the chosen terrain from the pool
+    (in-place).
     """
     neighbor_counts: dict[str, int] = {}
     for n in neighbors:
         if n is not None:
             neighbor_counts[n.name] = neighbor_counts.get(n.name, 0) + 1
 
-    # Peso de cada posição no pool
+    # Weight of each position in the pool
     weights = [
         max(0.0, 1.0 - penalty * neighbor_counts.get(t.name, 0))
         for t in pool
@@ -122,15 +123,15 @@ def _pick_from_pool(
 # ─────────────────────────────────────────────────────────────────────────────
 
 class UnionFind:
-    """Estrutura Union-Find com compressão de caminho e união por rank."""
+    """Union-Find structure with path compression and union by rank."""
 
     def __init__(self, n: int):
-        """Método Construtor."""
+        """Constructor."""
         self._parent = list(range(n))
         self._rank   = [0] * n
 
     def find(self, x: int) -> int:
-        """Retorna o representante do componente de x (com compressão de caminho)."""
+        """Return the representative of x's component (with path compression)."""
         while self._parent[x] != x:
             self._parent[x] = self._parent[self._parent[x]]  # path halving
             x = self._parent[x]
@@ -138,14 +139,14 @@ class UnionFind:
 
     def union(self, x: int, y: int) -> bool:
         """
-        Une os componentes de x e y.
-        Retorna True se eram componentes distintos (a parede foi removida),
-        False se já pertenciam ao mesmo componente.
+        Merge the components of x and y.
+        Returns True if they were distinct components (the wall was removed),
+        False if they already belonged to the same component.
         """
         rx, ry = self.find(x), self.find(y)
         if rx == ry:
             return False
-        # União por rank
+        # Union by rank
         if self._rank[rx] < self._rank[ry]:
             rx, ry = ry, rx
         self._parent[ry] = rx
@@ -155,12 +156,12 @@ class UnionFind:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Resultado da geração
+# Generation result
 # ─────────────────────────────────────────────────────────────────────────────
 
 @dataclass
 class MazeResult:
-    """Contém todos os dados gerados pelo algoritmo de geração de mapa."""
+    """Holds all data produced by the map generation algorithm."""
     rows:         int
     cols:         int
     grid_map:     list[list[int]]
@@ -168,7 +169,7 @@ class MazeResult:
     terrain_map:  list[list[Optional[TerrainType]]]
     seed:         int
 
-    # dimensões reais do grid expandido
+    # actual dimensions of the expanded grid
     @property
     def grid_rows(self) -> int:
         return 2 * self.rows - 1
@@ -179,14 +180,14 @@ class MazeResult:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Algoritmo principal
+# Main algorithm
 # ─────────────────────────────────────────────────────────────────────────────
 
 def generate_open_grid(rows: int = 8,
                        cols: int = 8,
                        seed: Optional[int] = None,
                       ) -> MazeResult:
-    """Gera um grid aberto sem paredes — só pesos de terreno."""
+    """Generate an open grid with no walls — terrain weights only."""
     if seed is None:
         seed = random.randint(0, 2**32 - 1)
     rng = random.Random(seed)
@@ -201,8 +202,8 @@ def generate_open_grid(rows: int = 8,
     for r in range(G_ROWS):
         for c in range(G_COLS):
             neighbors = [
-                terrain_map[r - 1][c] if r > 0 else None,      # cima
-                terrain_map[r][c - 1] if c > 0 else None,      # esquerda
+                terrain_map[r - 1][c] if r > 0 else None,      # up
+                terrain_map[r][c - 1] if c > 0 else None,      # left
                 terrain_map[r - 1][c - 1] if r > 0 and c > 0 else None,  # diagonal
                 terrain_map[r - 1][c + 1] if r > 0 and c + 1 < G_COLS else None,  # diagonal
             ]
@@ -223,12 +224,12 @@ def generate_open_grid(rows: int = 8,
     )
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Conversão para o formato esperado por config.py / _build_graph
+# Conversion to the format expected by config.py / _build_graph
 # ─────────────────────────────────────────────────────────────────────────────
 
 def maze_to_config_format(result: MazeResult,
                          ) -> tuple[list[list[int]], list[list[float]], int, int]:
-    """Converte um MazeResult para as estruturas usadas em config.py."""
+    """Convert a MazeResult into the structures used in config.py."""
     return (
         result.grid_map,
         result.grid_weights,
@@ -237,7 +238,7 @@ def maze_to_config_format(result: MazeResult,
     )
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Utilitários de debug / inspeção
+# Debug / inspection utilities
 # ─────────────────────────────────────────────────────────────────────────────
 
 _TERRAIN_CHAR: dict[str, str] = {
@@ -248,11 +249,11 @@ _TERRAIN_CHAR: dict[str, str] = {
 }
 
 def print_maze(result: MazeResult) -> None:
-    """Imprime o grid no terminal para inspeção rápida."""
+    """Print the grid to the terminal for quick inspection."""
     G_ROWS = result.grid_rows
     G_COLS = result.grid_cols
-    print(f"Seed: {result.seed}  |  Grid lógico: {result.rows}×{result.cols}"
-          f"  |  Grid expandido: {G_ROWS}×{G_COLS}")
+    print(f"Seed: {result.seed}  |  Logical grid: {result.rows}×{result.cols}"
+          f"  |  Expanded grid: {G_ROWS}×{G_COLS}")
     print("+" + "─" * (G_COLS * 2 - 1) + "+")
     for r in range(G_ROWS):
         row_str = ""
@@ -268,7 +269,7 @@ def print_maze(result: MazeResult) -> None:
 
 
 def terrain_stats(result: MazeResult) -> dict[str, int]:
-    """Conta quantas células de cada terreno foram geradas."""
+    """Count how many cells of each terrain type were generated."""
     counts: dict[str, int] = {t.name: 0 for t in TERRAINS}
     for r in range(result.grid_rows):
         for c in range(result.grid_cols):
@@ -279,7 +280,7 @@ def terrain_stats(result: MazeResult) -> dict[str, int]:
     return counts
 
 def _counts_for_size(total: int) -> dict[str, int]:
-    """Escala TERRAIN_COUNTS proporcionalmente para qualquer tamanho de mapa."""
+    """Scale TERRAIN_COUNTS proportionally to any map size."""
     base_total = sum(TERRAIN_COUNTS.values())
     scaled = {}
     remainder = total
@@ -288,19 +289,19 @@ def _counts_for_size(total: int) -> dict[str, int]:
         qty = round(TERRAIN_COUNTS[name] / base_total * total)
         scaled[name] = qty
         remainder -= qty
-    scaled[names[-1]] = remainder  # último absorve o arredondamento
+    scaled[names[-1]] = remainder  # last one absorbs the rounding
     return scaled
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Execução standalone — teste rápido
+# Standalone execution — quick test
 # ─────────────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
     maze = generate_open_grid(rows=8, cols=8, seed=42)
     print_maze(maze)
-    print("\nEstatísticas de terreno:")
+    print("\nTerrain statistics:")
     for name, count in terrain_stats(maze).items():
-        print(f"  {name:10s}: {count:3d} células")
+        print(f"  {name:10s}: {count:3d} cells")
 
     grid_map, grid_weights, g_rows, g_cols = maze_to_config_format(maze)
     print(f"\ngrid_map[0]     = {grid_map[0]}")
