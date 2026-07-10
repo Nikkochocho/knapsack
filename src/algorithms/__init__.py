@@ -1,31 +1,33 @@
 """
 algorithms/__init__.py
 ======================
-Registro central dos algoritmos de busca.
+Central registry of search algorithms.
 """
 
 
 from search_result import SearchResult
 
-# ── imports dos algoritmos ────────────────────────────────────────────────────
+# ── algorithm imports ──────────────────────────────────────────────────────
 
 from algorithms.encosta             import search as encosta_search
 from algorithms.encosta_tentativa   import search as encosta_tentativa_search
 from algorithms.tempera             import search as tempera_search
 from algorithms.ag                  import search as ag_search
 
+# Canonical (English) method keys — must match config.SEARCH_METHODS exactly,
+# since those are the values selected in ui/control_panel.py's dropdown.
 REGISTRY: dict[str, callable] = {
-    'Subida de Encosta':              encosta_search,
-    'Subida de Encosta (Tentativa)':  encosta_tentativa_search,
-    'Têmpera Simulada':               tempera_search,
-    'Algoritmo Genético':             ag_search,
+    'Hill Climbing':                  encosta_search,
+    'Hill Climbing (Random Restart)': encosta_tentativa_search,
+    'Simulated Annealing':            tempera_search,
+    'Genetic Algorithm':              ag_search,
 }
 
 LOCAL_SEARCH_METHODS = {
-    'Subida de Encosta',
-    'Subida de Encosta (Tentativa)',
-    'Têmpera Simulada',
-    'Algoritmo Genético',   
+    'Hill Climbing',
+    'Hill Climbing (Random Restart)',
+    'Simulated Annealing',
+    'Genetic Algorithm',
 }
 
 def run_search(method: str, start: str, goal: str,
@@ -35,16 +37,16 @@ def run_search(method: str, start: str, goal: str,
                tf: float = 0.1,
                fr: float = 0.95,
                tempo_limite: float = 10.0,
-               tp: int = 10,        
-               ng: int = 20,        
-               tc: float = 0.8,    
-               tm: float = 0.1,     
-               ig: float = 0.2,    
+               tp: int = 10,
+               ng: int = 20,
+               tc: float = 0.8,
+               tm: float = 0.1,
+               ig: float = 0.2,
                ) -> SearchResult:
 
     fn = REGISTRY.get(method)
     if fn is None:
-        print(f'[AVISO] Método "{method}" não encontrado no registro.')
+        print(f'[WARNING] Method "{method}" not found in the registry.')
         return SearchResult()
 
     kwargs = dict(start=start, goal=goal, graph=graph)
@@ -56,8 +58,8 @@ def run_search(method: str, start: str, goal: str,
         kwargs['fr']           = fr
         kwargs['tempo_limite'] = tempo_limite
 
-    if method == 'Algoritmo Genético':  # ← adiciona
-        kwargs['tempo_limite'] = tempo_limite  # ← C_MAX da mochila
+    if method == 'Genetic Algorithm':
+        kwargs['tempo_limite'] = tempo_limite  # ← knapsack's C_MAX
         kwargs['tp'] = tp
         kwargs['ng'] = ng
         kwargs['tc'] = tc

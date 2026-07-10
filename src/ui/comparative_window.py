@@ -1,51 +1,51 @@
 """
 ui/comparative_window.py
 ==================================================================
-Janela de Análise Comparativa dos algoritmos de busca.
-Permite configurar grafo, parâmetros por método, executar todos e
-exibir tabela + gráfico de barras comparativo.
+Comparative Analysis window for the search algorithms.
+Lets the user configure the graph, per-method parameters, run all
+methods, and display a comparison table + bar chart.
 """
 
 import tkinter as tk
 from tkinter import ttk
 import time
 import config
+import i18n
 from config import COLORS
 from algorithms import run_search
 from multiverse import generate_multiverse
 from ui.report_exporter import export_report
 
 
-# ── paleta de cores para as barras do gráfico ─────────────────────────────────
+# ── color palette for the chart bars ──────────────────────────────────────────
 BAR_COLORS = ['#4A9EFF', '#F5A623', '#7ED321', '#D0021B',
               '#9B59B6', '#1ABC9C', '#E67E22', '#2ECC71']
 
-METHOD_ABBR = {
-    'Subida de Encosta':             'SE',
-    'Subida de Encosta (Tentativa)': 'SET',
-    'Têmpera Simulada':              'TS',
-    'Algoritmo Genético':            'AG',
-}
+# Canonical (English) method keys — must match config.SEARCH_METHODS exactly.
+HILL_CLIMBING            = 'Hill Climbing'
+HILL_CLIMBING_RESTART    = 'Hill Climbing (Random Restart)'
+SIMULATED_ANNEALING      = 'Simulated Annealing'
+GENETIC_ALGORITHM        = 'Genetic Algorithm'
 
-TMAX_METHODS    = {'Subida de Encosta (Tentativa)'}
-TEMPERA_METHODS = {'Têmpera Simulada'}
-AG_METHODS      = {'Algoritmo Genético'}
+TMAX_METHODS    = {HILL_CLIMBING_RESTART}
+TEMPERA_METHODS = {SIMULATED_ANNEALING}
+AG_METHODS      = {GENETIC_ALGORITHM}
 
 
 class ComparativeWindow(tk.Toplevel):
-    """Janela principal da análise comparativa."""
+    """Main window for the comparative analysis."""
 
     def __init__(self, parent, fonts: dict):
         super().__init__(parent)
-        self.withdraw() 
-        self.title('Análise Comparativa')
+        self.withdraw()
+        self.title(i18n.t('cw_title'))
         self.configure(bg=COLORS['bg'])
         self.resizable(True, True)
         self.minsize(400, 800)
 
         self._fonts  = fonts
         self._results: list[dict] = []
-        self._param_widgets: dict = {}   # method_name -> dict of vars
+        self._param_widgets: dict = {}   # method_name -> list of var dicts
         self._build()
         self._center(parent)
         self.deiconify()
@@ -85,11 +85,11 @@ class ComparativeWindow(tk.Toplevel):
         h = tk.Frame(self, bg=COLORS['panel'], height=48)
         h.pack(fill='x')
         h.pack_propagate(False)
-        tk.Label(h, text='◈  ANÁLISE COMPARATIVA',
+        tk.Label(h, text=i18n.t('cw_header'),
                  font=self._fonts['title'],
                  bg=COLORS['panel'], fg=COLORS['accent'],
                  ).pack(side='left', padx=20, pady=10)
-        tk.Button(h, text='✕  Fechar',
+        tk.Button(h, text=i18n.t('cw_close'),
                   font=self._fonts['label'],
                   bg=COLORS['panel'], fg=COLORS['text_dim'],
                   activebackground='#c0392b', activeforeground='#ffffff',
@@ -97,14 +97,14 @@ class ComparativeWindow(tk.Toplevel):
                   command=self.destroy,
                   ).pack(side='right', padx=(4, 16), pady=8)
 
-    # ── seção parâmetros ──────────────────────────────────────────────────────
+    # ── parameters section ──────────────────────────────────────────────────────
 
     def _build_params_section(self, parent):
-        self._section(parent, '▸ PARÂMETROS POR MÉTODO')
+        self._section(parent, i18n.t('cw_section_params'))
 
         runs_frame = tk.Frame(parent, bg=COLORS['bg'])
         runs_frame.pack(pady=(0, 8))
-        tk.Label(runs_frame, text='Execuções por método:',
+        tk.Label(runs_frame, text=i18n.t('cw_runs_per_method'),
                 font=self._fonts['label'],
                 bg=COLORS['bg'], fg=COLORS['text_dim']).pack(side='left', padx=(0, 8))
         self._n_runs_var = tk.IntVar(value=1)
@@ -116,18 +116,19 @@ class ComparativeWindow(tk.Toplevel):
                 relief='flat', insertbackground=COLORS['text'],
                 ).pack(side='left')
 
-        # _param_widgets[method] = lista de dicts de vars (um por bloco)
+        # _param_widgets[method] = list of var dicts (one per block)
         self._param_widgets  = {}
-        # _method_containers[method] = frame que contém todos os blocos
+        # _method_containers[method] = frame holding all of that method's blocks
         self._method_containers = {}
 
-        # ── Subida de Encosta (sem parâmetros, bloco fixo) ───────────────────
+        # ── Hill Climbing (no parameters, fixed block) ───────────────────────
         se_outer = tk.Frame(parent, bg=COLORS['bg'])
         se_outer.pack(padx=20, pady=4, fill='x')
 
         title_row = tk.Frame(se_outer, bg=COLORS['bg'])
         title_row.pack(fill='x', pady=(0, 4))
-        tk.Label(title_row, text='SE  —  Subida de Encosta',
+        tk.Label(title_row,
+                text=f'{i18n.method_abbr(HILL_CLIMBING)}  —  {i18n.method_label(HILL_CLIMBING)}',
                 font=self._fonts['section'],
                 bg=COLORS['bg'], fg=COLORS['accent2'],
                 ).pack(side='left')
@@ -149,42 +150,42 @@ class ComparativeWindow(tk.Toplevel):
                     selectcolor=COLORS['node_default'],
                     relief='flat', cursor='hand2',
                     ).pack(side='left')
-        tk.Label(se_header, text='(sem parâmetros adicionais)',
+        tk.Label(se_header, text=i18n.t('cw_no_extra_params'),
                 font=self._fonts['label'],
                 bg=COLORS['panel'], fg=COLORS['text_dim'],
                 ).pack(side='left', padx=(12, 0))
 
         methods = [
-            'Subida de Encosta (Tentativa)',
-            'Têmpera Simulada',
-            'Algoritmo Genético',
+            HILL_CLIMBING_RESTART,
+            SIMULATED_ANNEALING,
+            GENETIC_ALGORITHM,
         ]
         for method in methods:
             self._param_widgets[method]     = []
             self._build_method_section(parent, method)
 
     def _build_method_section(self, parent, method: str):
-        """Cria o frame-mãe de um método com seus blocos e botão '+'."""
-        abbr = METHOD_ABBR.get(method, method)
+        """Create the parent frame for a method with its blocks and '+' button."""
+        abbr = i18n.method_abbr(method)
 
         outer = tk.Frame(parent, bg=COLORS['bg'])
         outer.pack(padx=20, pady=4, fill='x')
 
-        # título do método
+        # method title
         title_row = tk.Frame(outer, bg=COLORS['bg'])
         title_row.pack(fill='x', pady=(0, 4))
-        tk.Label(title_row, text=f'{abbr}  —  {method}',
+        tk.Label(title_row, text=f'{abbr}  —  {i18n.method_label(method)}',
                 font=self._fonts['section'],
                 bg=COLORS['bg'], fg=COLORS['accent2'],
                 ).pack(side='left')
 
-        # container dos blocos
+        # container for the blocks
         container = tk.Frame(outer, bg=COLORS['bg'])
         container.pack(fill='x')
         self._method_containers[method] = container
 
-        # botão '+'
-        tk.Button(outer, text='＋  adicionar configuração',
+        # '+' button
+        tk.Button(outer, text=i18n.t('cw_add_config'),
                 font=self._fonts['label'],
                 bg=COLORS['bg'], fg=COLORS['accent'],
                 activebackground=COLORS['node_default'],
@@ -193,11 +194,11 @@ class ComparativeWindow(tk.Toplevel):
                 command=lambda m=method: self._add_block(m),
                 ).pack(anchor='center', pady=(4, 0))
 
-        # primeiro bloco já criado por padrão
+        # first block already created by default
         self._add_block(method)
 
     def _build_method_block(self, parent, method: str):
-        abbr = METHOD_ABBR.get(method, method)
+        abbr = i18n.method_abbr(method)
 
         frame = tk.Frame(parent, bg=COLORS['panel'],
                          highlightbackground=COLORS['panel_border'],
@@ -205,7 +206,7 @@ class ComparativeWindow(tk.Toplevel):
         frame.pack(padx=20, pady=6, fill='x')
         frame.pack_propagate(True)
 
-        # cabeçalho do bloco
+        # block header
         header = tk.Frame(frame, bg=COLORS['panel'])
         header.pack(fill='x', padx=12, pady=(8, 4))
 
@@ -213,7 +214,7 @@ class ComparativeWindow(tk.Toplevel):
 
         enabled_var = tk.BooleanVar(value=True)
         self._param_widgets[method]['_enabled'] = enabled_var
-        tk.Checkbutton(header, text=f'{abbr}  —  {method}',
+        tk.Checkbutton(header, text=f'{abbr}  —  {i18n.method_label(method)}',
                        variable=enabled_var,
                        font=self._fonts['section'],
                        bg=COLORS['panel'], fg=COLORS['accent'],
@@ -226,36 +227,36 @@ class ComparativeWindow(tk.Toplevel):
         inner.pack(expand=True, anchor='center', pady=(0, 10))
 
         if method in TMAX_METHODS:
-            self._add_spinbox(inner, method, 'tmax', 'Tentativas (tmax):',
+            self._add_spinbox(inner, method, 'tmax', i18n.t('cp_label_tmax'),
                               20, 1, 500, 1, '%d', 'int')
 
         elif method in TEMPERA_METHODS:
-            self._add_spinbox(inner, method, 't1', 'Temperatura inicial (t1):',
+            self._add_spinbox(inner, method, 't1', i18n.t('cp_label_t1'),
                               100.0, 1.0, 1000.0, 10.0, '%.1f', 'float')
-            self._add_spinbox(inner, method, 'tf', 'Temperatura final (tf):',
+            self._add_spinbox(inner, method, 'tf', i18n.t('cp_label_tf'),
                               0.1, 0.01, 10.0, 0.1, '%.2f', 'float')
-            self._add_spinbox(inner, method, 'fr', 'Fator de resfriamento (fr):',
+            self._add_spinbox(inner, method, 'fr', i18n.t('cp_label_fr'),
                               0.95, 0.01, 0.99, 0.01, '%.2f', 'float')
 
         elif method in AG_METHODS:
-            self._add_spinbox(inner, method, 'tp', 'População (tp):',
+            self._add_spinbox(inner, method, 'tp', i18n.t('cp_label_tp'),
                               10, 2, 100, 1, '%d', 'int')
-            self._add_spinbox(inner, method, 'ng', 'Gerações (ng):',
+            self._add_spinbox(inner, method, 'ng', i18n.t('cp_label_ng'),
                               20, 1, 500, 1, '%d', 'int')
-            self._add_spinbox(inner, method, 'tc', 'Taxa cruzamento (tc):',
+            self._add_spinbox(inner, method, 'tc', i18n.t('cp_label_tc'),
                               0.8, 0.0, 1.0, 0.05, '%.2f', 'float')
-            self._add_spinbox(inner, method, 'tm', 'Taxa mutação (tm):',
+            self._add_spinbox(inner, method, 'tm', i18n.t('cp_label_tm'),
                               0.1, 0.0, 1.0, 0.01, '%.2f', 'float')
-            self._add_spinbox(inner, method, 'ig', 'Elitismo (ig):',
+            self._add_spinbox(inner, method, 'ig', i18n.t('cp_label_ig'),
                               0.2, 0.0, 1.0, 0.05, '%.2f', 'float')
 
         else:
-            tk.Label(inner, text='(sem parâmetros adicionais)',
+            tk.Label(inner, text=i18n.t('cw_no_extra_params'),
                      font=self._fonts['label'],
                      bg=COLORS['panel'], fg=COLORS['text_dim']).pack(anchor='w')
 
     def _add_block(self, method: str):
-        """Adiciona um novo bloco de parâmetros para o método."""
+        """Add a new parameter block for the given method."""
         container = self._method_containers[method]
         idx       = len(self._param_widgets[method])
         pw        = {}
@@ -266,13 +267,13 @@ class ComparativeWindow(tk.Toplevel):
                         highlightthickness=1)
         block.pack(fill='x', pady=3)
 
-        # cabeçalho do bloco com checkbox e botão X
+        # block header with checkbox and X button
         header = tk.Frame(block, bg=COLORS['panel'])
         header.pack(fill='x', padx=12, pady=(6, 2))
 
         enabled_var = tk.BooleanVar(value=True)
         pw['_enabled'] = enabled_var
-        abbr = METHOD_ABBR.get(method, method)
+        abbr = i18n.method_abbr(method)
         tk.Checkbutton(header,
                     text=f'#{idx + 1}',
                     variable=enabled_var,
@@ -283,7 +284,7 @@ class ComparativeWindow(tk.Toplevel):
                     relief='flat', cursor='hand2',
                     ).pack(side='left')
 
-        # botão X (só aparece se não for o primeiro bloco)
+        # X button (only shown if not the first block)
         if idx > 0:
             tk.Button(header, text='✕',
                     font=self._fonts['label'],
@@ -297,29 +298,29 @@ class ComparativeWindow(tk.Toplevel):
         inner.pack(anchor='center', pady=(0, 8))
 
         if method in TMAX_METHODS:
-            self._add_spinbox(inner, pw, 'tmax', 'Tentativas (tmax):',
+            self._add_spinbox(inner, pw, 'tmax', i18n.t('cp_label_tmax'),
                             20, 1, 500, 1, '%d', 'int')
         elif method in TEMPERA_METHODS:
-            self._add_spinbox(inner, pw, 't1', 'Temperatura inicial (t1):',
+            self._add_spinbox(inner, pw, 't1', i18n.t('cp_label_t1'),
                             100.0, 1.0, 1000.0, 10.0, '%.1f', 'float')
-            self._add_spinbox(inner, pw, 'tf', 'Temperatura final (tf):',
+            self._add_spinbox(inner, pw, 'tf', i18n.t('cp_label_tf'),
                             0.1, 0.01, 10.0, 0.1, '%.2f', 'float')
-            self._add_spinbox(inner, pw, 'fr', 'Fator de resfriamento (fr):',
+            self._add_spinbox(inner, pw, 'fr', i18n.t('cp_label_fr'),
                             0.95, 0.01, 0.99, 0.01, '%.2f', 'float')
         elif method in AG_METHODS:
-            self._add_spinbox(inner, pw, 'tp', 'População (tp):',
+            self._add_spinbox(inner, pw, 'tp', i18n.t('cp_label_tp'),
                             10, 2, 100, 1, '%d', 'int')
-            self._add_spinbox(inner, pw, 'ng', 'Gerações (ng):',
+            self._add_spinbox(inner, pw, 'ng', i18n.t('cp_label_ng'),
                             20, 1, 500, 1, '%d', 'int')
-            self._add_spinbox(inner, pw, 'tc', 'Taxa cruzamento (tc):',
+            self._add_spinbox(inner, pw, 'tc', i18n.t('cp_label_tc'),
                             0.8, 0.0, 1.0, 0.05, '%.2f', 'float')
-            self._add_spinbox(inner, pw, 'tm', 'Taxa mutação (tm):',
+            self._add_spinbox(inner, pw, 'tm', i18n.t('cp_label_tm'),
                             0.1, 0.0, 1.0, 0.01, '%.2f', 'float')
-            self._add_spinbox(inner, pw, 'ig', 'Elitismo (ig):',
+            self._add_spinbox(inner, pw, 'ig', i18n.t('cp_label_ig'),
                             0.2, 0.0, 1.0, 0.05, '%.2f', 'float')
 
     def _remove_block(self, block: tk.Frame, method: str, pw: dict):
-        """Remove um bloco de parâmetros."""
+        """Remove a parameter block."""
         self._param_widgets[method].remove(pw)
         block.destroy()
 
@@ -343,8 +344,8 @@ class ComparativeWindow(tk.Toplevel):
                 buttonbackground=COLORS['panel_border'],
                 relief='flat', insertbackground=COLORS['text'],
                 ).grid(row=0, column=1, sticky='w')
-    
-    # ── botão executar ────────────────────────────────────────────────────────
+
+    # ── run button ────────────────────────────────────────────────────────────
 
     def _build_run_button(self, parent):
         self._status_var = tk.StringVar(value='')
@@ -353,7 +354,7 @@ class ComparativeWindow(tk.Toplevel):
                  bg=COLORS['bg'], fg=COLORS['accent'],
                  ).pack(padx=20, pady=(4, 0), anchor='w')
 
-        tk.Button(parent, text='▶  EXECUTAR COMPARAÇÃO',
+        tk.Button(parent, text=i18n.t('cw_btn_run_comparison'),
                   font=self._fonts['section'],
                   bg=COLORS['accent'], fg='#ffffff',
                   activebackground='#6AAAF8', activeforeground='#ffffff',
@@ -361,7 +362,7 @@ class ComparativeWindow(tk.Toplevel):
                   command=self._run_all, pady=10,
                   ).pack(padx=20, pady=(4, 20), fill='x')
 
-    # ── execução ──────────────────────────────────────────────────────────────
+    # ── execution ─────────────────────────────────────────────────────────────
 
     def _run_all(self):
         start_node = config.START_NODE
@@ -369,23 +370,23 @@ class ComparativeWindow(tk.Toplevel):
         graph      = config.SUPER_GRAPH if config.MULTIVERSE_MODE else config.GRAPH
 
         if start_node == goal_node:
-            self._status_var.set('⚠ Início igual ao objetivo.')
+            self._status_var.set(i18n.t('cw_status_start_eq_goal'))
             return
 
         methods_order = [
-            'Subida de Encosta',
-            'Subida de Encosta (Tentativa)',
-            'Têmpera Simulada',
-            'Algoritmo Genético',
+            HILL_CLIMBING,
+            HILL_CLIMBING_RESTART,
+            SIMULATED_ANNEALING,
+            GENETIC_ALGORITHM,
         ]
 
         self._results = []
         n_runs = self._n_runs_var.get()
 
-        # conta total de blocos habilitados
+        # count total enabled blocks
         total = 0
         for method in methods_order:
-            if method == 'Subida de Encosta':
+            if method == HILL_CLIMBING:
                 total += 1
             else:
                 total += sum(1 for pw in self._param_widgets[method]
@@ -393,15 +394,16 @@ class ComparativeWindow(tk.Toplevel):
         done = 0
 
         for method in methods_order:
-            abbr   = METHOD_ABBR[method]
+            abbr = i18n.method_abbr(method)
 
-            # SE não tem blocos — trata separado
-            if method == 'Subida de Encosta':
+            # Hill Climbing has no blocks — handled separately
+            if method == HILL_CLIMBING:
                 done += 1
                 costs, gains, path_lens, founds = [], [], [], []
                 for run in range(n_runs):
-                    self._status_var.set(
-                        f'Executando {abbr} ({done}/{total}) — tentativa {run+1}/{n_runs}…')
+                    self._status_var.set(i18n.t(
+                        'cw_status_running', label=abbr, done=done,
+                        total=total, run=run + 1, n_runs=n_runs))
                     self.update()
                     result = run_search(method=method, start=start_node,
                                         goal=goal_node, graph=graph,
@@ -417,7 +419,7 @@ class ComparativeWindow(tk.Toplevel):
                     abbr, method, '—', n_runs, costs, gains, path_lens, founds))
                 continue
 
-            # métodos com blocos
+            # methods with blocks
             for block_idx, pw in enumerate(self._param_widgets[method]):
                 if not pw['_enabled'].get():
                     continue
@@ -426,8 +428,9 @@ class ComparativeWindow(tk.Toplevel):
                 costs, gains, path_lens, founds = [], [], [], []
 
                 for run in range(n_runs):
-                    self._status_var.set(
-                        f'Executando {label} ({done}/{total}) — tentativa {run+1}/{n_runs}…')
+                    self._status_var.set(i18n.t(
+                        'cw_status_running', label=label, done=done,
+                        total=total, run=run + 1, n_runs=n_runs))
                     self.update()
                     kwargs = dict(
                         method=method, start=start_node, goal=goal_node,
@@ -452,11 +455,11 @@ class ComparativeWindow(tk.Toplevel):
                 cfg_str += f'  ×{n_runs}' if n_runs > 1 else ''
                 self._results.append(self._build_result_dict(
                     label, method, cfg_str, n_runs, costs, gains, path_lens, founds))
-        
-        self._status_var.set(f'✓ Concluído — {len(self._results)} método(s) executado(s).')
+
+        self._status_var.set(i18n.t('cw_status_done', n=len(self._results)))
         self._open_results()
 
-    # ── janela de resultados ──────────────────────────────────────────────────
+    # ── results window ───────────────────────────────────────────────────────
 
     def _open_results(self):
         ResultsWindow(self, self._results, self._fonts)
@@ -496,15 +499,15 @@ class ComparativeWindow(tk.Toplevel):
             'path_len': avg_nodes,
         }
 
-# ── janela de resultados ───────────────────────────────────────────────────────
+# ── results window ─────────────────────────────────────────────────────────────
 
 class ResultsWindow(tk.Toplevel):
 
     def __init__(self, parent, results: list[dict],
                  fonts: dict):
         super().__init__(parent)
-        self.withdraw() 
-        self.title('Resultados — Análise Comparativa')
+        self.withdraw()
+        self.title(i18n.t('cw_results_title'))
         self.configure(bg=COLORS['bg'])
         self.resizable(True, True)
         self.minsize(820, 540)
@@ -516,22 +519,22 @@ class ResultsWindow(tk.Toplevel):
         self.deiconify()
 
     def _build(self):
-        # cabeçalho
+        # header
         h = tk.Frame(self, bg=COLORS['panel'], height=48)
         h.pack(fill='x')
         h.pack_propagate(False)
-        tk.Label(h, text=f'◈  COMPARATIVA DOS ALGORITMOS  —  LIMITE {config.TEMPO_LIMITE:.0f}s',
+        tk.Label(h, text=i18n.t('cw_results_header', limit=config.TEMPO_LIMITE),
                 font=self._fonts['title'],
                 bg=COLORS['panel'], fg=COLORS['accent'],
                 ).pack(side='left', padx=20, pady=10)
-        tk.Button(h, text='✕  Fechar',
+        tk.Button(h, text=i18n.t('cw_close'),
                 font=self._fonts['label'],
                 bg=COLORS['panel'], fg=COLORS['text_dim'],
                 activebackground='#c0392b', activeforeground='#ffffff',
                 relief='flat', cursor='hand2', padx=14, pady=4,
                 command=self.destroy,
                 ).pack(side='right', padx=(4, 16), pady=8)
-        tk.Button(h, text='⬇  EXPORTAR PDF',
+        tk.Button(h, text=i18n.t('cw_export_pdf'),
                 font=self._fonts['label'],
                 bg=COLORS['panel'], fg=COLORS['accent'],
                 activebackground=COLORS['accent'], activeforeground='#ffffff',
@@ -569,10 +572,10 @@ class ResultsWindow(tk.Toplevel):
             fill='x', pady=10)
         self._build_chart(body)
 
-    # ── tabela ────────────────────────────────────────────────────────────────
+    # ── table ─────────────────────────────────────────────────────────────────
 
     def _build_table(self, parent):
-        tk.Label(parent, text='▸ TABELA COMPARATIVA',
+        tk.Label(parent, text=i18n.t('cw_section_table'),
                 font=self._fonts['section'],
                 bg=COLORS['bg'], fg=COLORS['accent2'],
                 anchor='w').pack(fill='x', pady=(0, 6))
@@ -582,22 +585,23 @@ class ResultsWindow(tk.Toplevel):
                         highlightthickness=1)
         wrapper.pack(fill='x')
 
-        cols      = ('MÉTODO', 'CONFIGURAÇÃO', 'TEMPO (s)', 'GANHO', 'NÓS')
-        col_widths = (8, 0, 10, 8, 6)   # 0 = coluna CONFIGURAÇÃO estica livre
+        cols = (i18n.t('cw_col_method'), i18n.t('cw_col_config'),
+                i18n.t('cw_col_time'), i18n.t('cw_col_gain'), i18n.t('cw_col_nodes'))
+        col_widths = (8, 0, 10, 8, 6)   # 0 = CONFIGURATION column stretches freely
 
-        # configura as colunas do grid
+        # configure the grid columns
         for i, w in enumerate(col_widths):
             wrapper.grid_columnconfigure(i, weight=1 if w == 0 else 0,
                                         minsize=w * 8)
 
-        # cabeçalho
+        # header row
         for col_idx, col in enumerate(cols):
             tk.Label(wrapper, text=col, font=self._fonts['section'],
                     bg=COLORS['panel_border'], fg=COLORS['text'],
                     anchor='w', padx=6, pady=6,
                     ).grid(row=0, column=col_idx, sticky='ew')
 
-        # linhas de dados
+        # data rows
         for row_idx, r in enumerate(self._results, start=1):
             bg = COLORS['panel'] if row_idx % 2 == 0 else COLORS['node_default']
 
@@ -621,21 +625,21 @@ class ResultsWindow(tk.Toplevel):
                         anchor='w', padx=6, pady=5,
                         ).grid(row=row_idx, column=col_idx, sticky='ew')
 
-    # ── gráfico de barras ─────────────────────────────────────────────────────
+    # ── bar chart ─────────────────────────────────────────────────────────────
 
     def _build_chart(self, parent):
-        tk.Label(parent, text='▸ GANHO POR MÉTODO (%)',
+        tk.Label(parent, text=i18n.t('cw_section_chart'),
                  font=self._fonts['section'],
                  bg=COLORS['bg'], fg=COLORS['accent2'],
                  anchor='w').pack(fill='x', pady=(0, 6))
 
-        # filtra apenas resultados com ganho mensurável
+        # keep only results with a measurable gain
         data = [(r['method'], r['gain'] * 100)
                 for r in self._results
                 if r['gain'] is not None]
 
         if not data:
-            tk.Label(parent, text='Nenhum dado de ganho disponível.',
+            tk.Label(parent, text=i18n.t('cw_no_gain_data'),
                      font=self._fonts['label'],
                      bg=COLORS['bg'], fg=COLORS['text_dim']).pack()
             return
@@ -650,10 +654,10 @@ class ResultsWindow(tk.Toplevel):
                        highlightbackground=COLORS['panel_border'],
                        highlightthickness=1)
         cv.pack(fill='x', pady=(0, 8))
-        self._chart_canvas = cv 
+        self._chart_canvas = cv
 
         max_val = max(v for _, v in data) if data else 1
-        max_val = max(max_val, 1)                 # evita divisão por zero
+        max_val = max(max_val, 1)                 # avoid division by zero
 
         n       = len(data)
         plot_w  = CHART_W - PAD_L - PAD_R
@@ -661,7 +665,7 @@ class ResultsWindow(tk.Toplevel):
         bar_w   = plot_w / n * (1 - BAR_GAP)
         slot_w  = plot_w / n
 
-        # eixo Y: linhas de grade
+        # Y axis: grid lines
         for pct in [0, 25, 50, 75, 100]:
             if pct > max_val + 5:
                 continue
@@ -673,7 +677,7 @@ class ResultsWindow(tk.Toplevel):
                            font=self._fonts['label'],
                            fill=COLORS['text_dim'])
 
-        # barras
+        # bars
         for idx, (label, value) in enumerate(data):
             x0 = PAD_L + idx * slot_w + slot_w * BAR_GAP / 2
             x1 = x0 + bar_w
@@ -683,37 +687,37 @@ class ResultsWindow(tk.Toplevel):
 
             color = BAR_COLORS[idx % len(BAR_COLORS)]
 
-            # sombra
+            # shadow
             cv.create_rectangle(x0 + 3, y0 + 3, x1 + 3, y1 + 3,
                                  fill='#111111', outline='')
-            # barra principal
+            # main bar
             cv.create_rectangle(x0, y0, x1, y1,
                                  fill=color, outline='')
-            # brilho superior
+            # top highlight
             cv.create_rectangle(x0, y0, x1, y0 + 4,
                                  fill=_lighten(color), outline='')
 
-            # valor em cima
+            # value label above
             cv.create_text((x0 + x1) / 2, y0 - 8,
                             text=f'{value:.1f}%',
                             font=self._fonts['label'],
                             fill=COLORS['text'])
 
-            # rótulo abaixo
+            # label below
             cv.create_text((x0 + x1) / 2, y1 + 14,
                             text=label,
                             font=self._fonts['section'],
                             fill=color)
 
-        # eixo X
+        # X axis
         cv.create_line(PAD_L, PAD_T + plot_h,
                        CHART_W - PAD_R, PAD_T + plot_h,
                        fill=COLORS['panel_border'], width=1)
-        # eixo Y
+        # Y axis
         cv.create_line(PAD_L, PAD_T,
                        PAD_L, PAD_T + plot_h,
                        fill=COLORS['panel_border'], width=1)
-        
+
     def _export_pdf(self):
         export_report(self._results)
 
@@ -727,19 +731,19 @@ class ResultsWindow(tk.Toplevel):
         self.geometry(f'{w}x{h}+{px + (pw-w)//2 + 40}+{py + (ph-h)//2 + 40}')
 
 
-# ── utilitários ───────────────────────────────────────────────────────────────
+# ── utilities ────────────────────────────────────────────────────────────────
 
 def _build_config_str(method: str, pw: dict) -> str:
-    """Monta a string de configuração exibida na tabela."""
-    if method == 'Subida de Encosta':
+    """Build the configuration string shown in the table."""
+    if method == HILL_CLIMBING:
         return '—'
-    if method == 'Subida de Encosta (Tentativa)':
+    if method == HILL_CLIMBING_RESTART:
         return f"TMAX={pw['tmax'].get()}"
-    if method == 'Têmpera Simulada':
+    if method == SIMULATED_ANNEALING:
         return (f"TI={pw['t1'].get():.1f}; "
                 f"TF={pw['tf'].get():.2f}; "
                 f"FR={pw['fr'].get():.2f}")
-    if method == 'Algoritmo Genético':
+    if method == GENETIC_ALGORITHM:
         return (f"TP={pw['tp'].get()}; "
                 f"NG={pw['ng'].get()}; "
                 f"TC={pw['tc'].get():.2f}; "
@@ -749,7 +753,7 @@ def _build_config_str(method: str, pw: dict) -> str:
 
 
 def _lighten(hex_color: str, amount: int = 40) -> str:
-    """Clareia uma cor hex para o brilho da barra."""
+    """Lighten a hex color for the bar's highlight."""
     hex_color = hex_color.lstrip('#')
     r, g, b = (int(hex_color[i:i+2], 16) for i in (0, 2, 4))
     r = min(255, r + amount)

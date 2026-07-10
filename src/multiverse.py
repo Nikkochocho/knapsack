@@ -1,7 +1,7 @@
 """
 multiverse.py
 =============
-Gera N mapas independentes e os conecta via portais bidirecionais.
+Generates N independent maps and connects them via bidirectional portals.
 """
 
 from __future__ import annotations
@@ -15,31 +15,31 @@ from maze_generator import MazeResult, generate_open_grid
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Estruturas de dados
+# Data structures
 # ─────────────────────────────────────────────────────────────────────────────
 
 @dataclass(frozen=True)
 class Portal:
-    """Aresta de portal entre dois mapas na mesma posição (r, c)."""
+    """Portal edge between two maps at the same position (r, c)."""
     map_a: int
     map_b: int
-    row:   int      # coordenada no grid EXPANDIDO (0..grid_rows-1)
-    col:   int      # coordenada no grid EXPANDIDO (0..grid_cols-1)
+    row:   int      # coordinate in the EXPANDED grid (0..grid_rows-1)
+    col:   int      # coordinate in the EXPANDED grid (0..grid_cols-1)
     cost:  float = 1.0
 
 
 @dataclass
 class MultiverseResult:
-    """Contém todos os mapas gerados e os portais que os conectam."""
+    """Holds all generated maps and the portals connecting them."""
     maps:      list[MazeResult]
     portals:   list[Portal]
     n_maps:    int
     start_map: int = 0
-    goal_map:  int = 0   # preenchido por generate_multiverse
+    goal_map:  int = 0   # filled in by generate_multiverse
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Geração
+# Generation
 # ─────────────────────────────────────────────────────────────────────────────
 
 def generate_multiverse(
@@ -50,18 +50,18 @@ def generate_multiverse(
     portal_cost:     float = 1.0,
     seed:            Optional[int] = None,
 ) -> MultiverseResult:
-    """Gera n_maps mapas e os conecta com portais."""
+    """Generate n_maps maps and connect them with portals."""
     if seed is None:
         seed = random.randint(0, 2 ** 32 - 1)
     rng = random.Random(seed)
 
-    # ── 1. Gerar mapas ───────────────────────────────────────────────────────
+    # ── 1. Generate maps ─────────────────────────────────────────────────────
     maps: list[MazeResult] = [
         generate_open_grid(rows, cols, rng.randint(0, 2 ** 32 - 1))
         for _ in range(n_maps)
     ]
 
-    # ── 2. Pré-calcular células livres de cada mapa ──────────────────────────
+    # ── 2. Pre-compute free cells for each map ───────────────────────────────
     def free_cells(m: MazeResult) -> set[tuple[int, int]]:
         return {
             (r, c)
@@ -75,7 +75,7 @@ def generate_multiverse(
     portals: list[Portal] = []
 
     def add_portal(a: int, b: int) -> bool:
-        """Tenta adicionar um portal bidirecional entre mapa a e mapa b."""
+        """Try to add a bidirectional portal between map a and map b."""
         shared = list(free[a] & free[b])
         if not shared:
             return False
@@ -84,7 +84,7 @@ def generate_multiverse(
         portals.append(Portal(b, a, r, c, portal_cost))
         return True
 
-    # ── 3. Spanning-tree dos mapas (garante conectividade M0 → M_final) ──────
+    # ── 3. Spanning tree over the maps (guarantees M0 → M_final connectivity) ─
     order = list(range(n_maps))
     rng.shuffle(order)
     connected = {order[0]}
@@ -99,9 +99,9 @@ def generate_multiverse(
             connected.add(b)
             remaining.discard(b)
 
-    # ── 4. Portais extras ────────────────────────────────────────────────────
+    # ── 4. Extra portals ──────────────────────────────────────────────────────
     extra_count = portals_per_map * n_maps
-    for _ in range(extra_count * 3):   # tenta mais vezes por causa de colisões
+    for _ in range(extra_count * 3):   # extra attempts to account for collisions
         if len(portals) // 2 >= extra_count + (n_maps - 1):
             break
         if n_maps < 2:
@@ -119,14 +119,14 @@ def generate_multiverse(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Utilitários de consulta
+# Query utilities
 # ─────────────────────────────────────────────────────────────────────────────
 
 def portals_of_map(mv: MultiverseResult, map_id: int) -> list[Portal]:
-    """Retorna os portais que saem do mapa map_id."""
+    """Return the portals that originate from map map_id."""
     return [p for p in mv.portals if p.map_a == map_id]
 
 
 def portal_cells_of_map(mv: MultiverseResult, map_id: int) -> set[tuple[int, int]]:
-    """Retorna o conjunto de (row, col) que são portais no mapa map_id."""
+    """Return the set of (row, col) positions that are portals in map map_id."""
     return {(p.row, p.col) for p in mv.portals if p.map_a == map_id}

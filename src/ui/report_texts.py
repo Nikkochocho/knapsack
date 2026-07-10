@@ -2,7 +2,6 @@
 ui/report_texts.py
 ==================
 Textos fixos do relatório PDF de Análise Comparativa.
-Edite este arquivo para personalizar o conteúdo do relatório.
 """
 
 # ── Capa ──────────────────────────────────────────────────────────────────────
