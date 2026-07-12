@@ -1,8 +1,10 @@
 """
 ui/report_exporter.py
 =====================
-Geração do relatório PDF de Análise Comparativa.
-Requer: pip install reportlab
+PDF report generation for the Comparative Analysis.
+The report is generated in whichever language is active in the app at
+export time (see i18n.get_language()).
+Requires: pip install reportlab
 """
 
 
@@ -21,15 +23,11 @@ from reportlab.platypus        import (
 )
 
 import config
-from ui.report_texts import (
-    TITULO, SUBTITULO, INTEGRANTES, INSTITUICAO, ANO,
-    SEC1_TITULO, SEC1_TEXTO,
-    SEC2_TITULO, SEC2_TEXTO,
-    SEC3_TITULO, SEC3_INTRO, SEC3_CONCLUSAO_TEMPLATE,
-)
+import i18n
+from ui.report_texts import MEMBERS, INSTITUTION, YEAR, get_text
 
 
-# ── estilos ───────────────────────────────────────────────────────────────────
+# ── styles ────────────────────────────────────────────────────────────────────
 
 def _build_styles() -> dict:
     base = getSampleStyleSheet()
@@ -38,32 +36,32 @@ def _build_styles() -> dict:
         return ParagraphStyle(name, **kw)
 
     return {
-        'capa_titulo': s('CapaTitulo',
+        'cover_title': s('CoverTitle',
             fontName='Times-Bold', fontSize=18,
             leading=26, alignment=TA_CENTER,
             spaceAfter=16),
 
-        'capa_subtitulo': s('CapaSubtitulo',
+        'cover_subtitle': s('CoverSubtitle',
             fontName='Times-Italic', fontSize=14,
             leading=20, alignment=TA_CENTER,
             spaceAfter=40),
 
-        'capa_label': s('CapaLabel',
+        'cover_label': s('CoverLabel',
             fontName='Times-Bold', fontSize=12,
             leading=18, alignment=TA_CENTER,
             spaceAfter=4),
 
-        'capa_integrante': s('CapaIntegrante',
+        'cover_member': s('CoverMember',
             fontName='Times-Roman', fontSize=12,
             leading=18, alignment=TA_CENTER,
             spaceAfter=2),
 
-        'capa_rodape': s('CapaRodape',
+        'cover_footer': s('CoverFooter',
             fontName='Times-Roman', fontSize=11,
             leading=16, alignment=TA_CENTER,
             spaceAfter=0),
 
-        'sec_titulo': s('SecTitulo',
+        'section_title': s('SectionTitle',
             fontName='Times-Bold', fontSize=13,
             leading=20, alignment=TA_LEFT,
             spaceBefore=12, spaceAfter=8),
@@ -81,14 +79,14 @@ def _build_styles() -> dict:
             fontName='Times-Roman', fontSize=10,
             leading=14, alignment=TA_LEFT),
 
-        'conclusao': s('Conclusao',
+        'conclusion': s('Conclusion',
             fontName='Times-Italic', fontSize=12,
             leading=20, alignment=TA_JUSTIFY,
             spaceBefore=12, spaceAfter=8),
     }
 
 def _build_chart_reportlab(results: list[dict], width: float) -> Table:
-    """Gera o gráfico de barras como Drawing do reportlab."""
+    """Generate the bar chart as a reportlab Drawing."""
     from reportlab.graphics.shapes import Drawing, Rect, String, Line
     from reportlab.graphics        import renderPDF
 
@@ -114,7 +112,7 @@ def _build_chart_reportlab(results: list[dict], width: float) -> Table:
 
     d = Drawing(W, H)
 
-    # grade e eixo Y
+    # grid and Y axis
     for pct in [0, 25, 50, 75, 100]:
         if pct > max_v + 5:
             continue
@@ -126,7 +124,7 @@ def _build_chart_reportlab(results: list[dict], width: float) -> Table:
                      fontSize=7, fillColor=colors.HexColor('#666666'),
                      textAnchor='end'))
 
-    # barras
+    # bars
     for idx, (label, value) in enumerate(data):
         x0    = PAD_L + idx * slot_w + slot_w * GAP / 2
         bar_h = max((value / max_v) * plot_h, 2)
@@ -135,18 +133,18 @@ def _build_chart_reportlab(results: list[dict], width: float) -> Table:
 
         d.add(Rect(x0, y0, bar_w, bar_h,
                    fillColor=col, strokeColor=None))
-        # valor em cima
+        # value label above
         d.add(String(x0 + bar_w / 2, y0 + bar_h + 4,
                      f'{value:.1f}%',
                      fontSize=8, fillColor=colors.HexColor('#222222'),
                      textAnchor='middle'))
-        # rótulo abaixo
+        # label below
         d.add(String(x0 + bar_w / 2, PAD_B - 16,
                      label,
                      fontSize=8, fillColor=col,
                      textAnchor='middle'))
 
-    # eixos
+    # axes
     d.add(Line(PAD_L, PAD_B, W - PAD_R, PAD_B,
                strokeColor=colors.HexColor('#AAAAAA'), strokeWidth=1))
     d.add(Line(PAD_L, PAD_B, PAD_L, PAD_B + plot_h,
@@ -156,10 +154,10 @@ def _build_chart_reportlab(results: list[dict], width: float) -> Table:
     from reportlab.platypus import flowables
     return d
 
-# ── tabela de resultados ──────────────────────────────────────────────────────
+# ── results table ──────────────────────────────────────────────────────────────
 
-def _build_results_table(results: list[dict], styles: dict) -> Table:
-    header = ['MÉTODO', 'CONFIGURAÇÃO', 'TEMPO (s)', 'GANHO', 'NÓS']
+def _build_results_table(results: list[dict], styles: dict, lang: str) -> Table:
+    header = get_text('table_headers', lang)
     rows   = [header]
 
     for r in results:
@@ -178,7 +176,7 @@ def _build_results_table(results: list[dict], styles: dict) -> Table:
 
     table = Table(rows, colWidths=col_widths, repeatRows=1)
     table.setStyle(TableStyle([
-        # cabeçalho
+        # header
         ('BACKGROUND',  (0, 0), (-1, 0), colors.HexColor('#2C3E50')),
         ('TEXTCOLOR',   (0, 0), (-1, 0), colors.white),
         ('FONTNAME',    (0, 0), (-1, 0), 'Times-Bold'),
@@ -186,7 +184,7 @@ def _build_results_table(results: list[dict], styles: dict) -> Table:
         ('ALIGN',       (0, 0), (-1, 0), 'CENTER'),
         ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
         ('TOPPADDING',    (0, 0), (-1, 0), 8),
-        # linhas de dados
+        # data rows
         ('FONTNAME',    (0, 1), (-1, -1), 'Times-Roman'),
         ('FONTSIZE',    (0, 1), (-1, -1), 10),
         ('ALIGN',       (2, 1), (-1, -1), 'CENTER'),
@@ -194,43 +192,47 @@ def _build_results_table(results: list[dict], styles: dict) -> Table:
         ('TOPPADDING',  (0, 1), (-1, -1), 5),
         ('BOTTOMPADDING', (0, 1), (-1, -1), 5),
         ('LEFTPADDING', (0, 0), (-1, -1), 6),
-        # zebra
+        # zebra striping
         *[('BACKGROUND', (0, i), (-1, i), colors.HexColor('#F2F2F2'))
           for i in range(2, len(rows), 2)],
-        # bordas
+        # borders
         ('GRID',        (0, 0), (-1, -1), 0.5, colors.HexColor('#AAAAAA')),
         ('BOX',         (0, 0), (-1, -1), 1.0, colors.HexColor('#2C3E50')),
     ]))
     return table
 
 
-# ── conclusão dinâmica ────────────────────────────────────────────────────────
+# ── dynamic conclusion ────────────────────────────────────────────────────────
 
-def _build_conclusao(results: list[dict]) -> str:
-    validos = [r for r in results if r['gain'] is not None and r['found']]
-    if not validos:
-        return "Não foi possível determinar o melhor resultado pois nenhum algoritmo encontrou uma solução válida."
+def _build_conclusion(results: list[dict], lang: str) -> str:
+    valid = [r for r in results if r['gain'] is not None and r['found']]
+    if not valid:
+        return get_text('conclusion_no_result', lang)
 
-    melhor = max(validos, key=lambda r: r['gain'])
-    return SEC3_CONCLUSAO_TEMPLATE.format(
-        method=melhor['method'],
-        config=melhor['config'] if melhor['config'] != '—' else 'padrão',
-        time=f"{melhor['time']:.3f}",
+    best = max(valid, key=lambda r: r['gain'])
+    return get_text(
+        'conclusion_template', lang,
+        method=best['method'],
+        config=best['config'] if best['config'] != '—' else get_text('default_config_label', lang),
+        time=f"{best['time']:.3f}",
         limit=f"{config.TEMPO_LIMITE:.1f}",
-        gain=f"{melhor['gain']*100:.1f}",
+        gain=f"{best['gain']*100:.1f}",
     )
 
 
-# ── geração do PDF ────────────────────────────────────────────────────────────
+# ── PDF generation ────────────────────────────────────────────────────────────
 
 def export_report(results: list[dict]):
-    """Abre diálogo para salvar e gera o PDF do relatório."""
+    """Open a save dialog and generate the report PDF, in whichever language
+    is currently active in the app."""
+
+    lang = i18n.get_language()
 
     path = filedialog.asksaveasfilename(
-        title='Salvar relatório',
+        title=get_text('save_dialog_title', lang),
         defaultextension='.pdf',
         filetypes=[('PDF', '*.pdf')],
-        initialfile=f'relatorio_ia.pdf',
+        initialfile=get_text('save_filename', lang),
     )
     if not path:
         return
@@ -239,96 +241,102 @@ def export_report(results: list[dict]):
     W, H    = A4
     margin  = 3 * cm
 
+    title    = get_text('title', lang)
+    subtitle = get_text('subtitle', lang)
+
     doc = SimpleDocTemplate(
         path,
         pagesize=A4,
         leftMargin=margin, rightMargin=margin,
         topMargin=margin,  bottomMargin=margin,
-        title=TITULO,
+        title=title,
     )
 
     story = []
 
-    # ── CAPA ──────────────────────────────────────────────────────────────────
+    # ── COVER ────────────────────────────────────────────────────────────────
     story.append(Spacer(1, 4 * cm))
-    story.append(Paragraph(TITULO,    styles['capa_titulo']))
-    story.append(Paragraph(SUBTITULO, styles['capa_subtitulo']))
+    story.append(Paragraph(title,    styles['cover_title']))
+    story.append(Paragraph(subtitle, styles['cover_subtitle']))
     story.append(HRFlowable(width='80%', thickness=1,
                              color=colors.HexColor('#2C3E50'),
                              spaceAfter=24, spaceBefore=0))
     story.append(Spacer(1, 0.5 * cm))
-    story.append(Paragraph('Integrantes:', styles['capa_label']))
-    for nome in INTEGRANTES:
-        story.append(Paragraph(nome, styles['capa_integrante']))
+    story.append(Paragraph(get_text('members_label', lang), styles['cover_label']))
+    for name in MEMBERS:
+        story.append(Paragraph(name, styles['cover_member']))
 
-    if INSTITUICAO:
+    if INSTITUTION:
         story.append(Spacer(1, 2 * cm))
-        story.append(Paragraph(INSTITUICAO, styles['capa_rodape']))
-    if ANO:
-        story.append(Paragraph(ANO, styles['capa_rodape']))
+        story.append(Paragraph(INSTITUTION, styles['cover_footer']))
+    if YEAR:
+        story.append(Paragraph(YEAR, styles['cover_footer']))
 
     story.append(PageBreak())
 
-    # ── SEÇÃO 1 — INTRODUÇÃO ──────────────────────────────────────────────────
-    story.append(Paragraph(SEC1_TITULO, styles['sec_titulo']))
+    # ── SECTION 1 — INTRODUCTION ────────────────────────────────────────────
+    story.append(Paragraph(get_text('section1_title', lang), styles['section_title']))
     story.append(HRFlowable(width='100%', thickness=0.5,
                              color=colors.HexColor('#AAAAAA'),
                              spaceAfter=10))
-    for paragrafo in SEC1_TEXTO.split('\n\n'):
-        if paragrafo.strip():
-            story.append(Paragraph(paragrafo.strip(), styles['body']))
+    for paragraph in get_text('section1_text', lang).split('\n\n'):
+        if paragraph.strip():
+            story.append(Paragraph(paragraph.strip(), styles['body']))
 
     story.append(PageBreak())
 
-    # ── SEÇÃO 2 — METODOLOGIA ─────────────────────────────────────────────────
-    story.append(Paragraph(SEC2_TITULO, styles['sec_titulo']))
+    # ── SECTION 2 — METHODOLOGY ──────────────────────────────────────────────
+    story.append(Paragraph(get_text('section2_title', lang), styles['section_title']))
     story.append(HRFlowable(width='100%', thickness=0.5,
                              color=colors.HexColor('#AAAAAA'),
                              spaceAfter=10))
-    for paragrafo in SEC2_TEXTO.split('\n\n'):
-        if paragrafo.strip():
-            story.append(Paragraph(paragrafo.strip(), styles['body']))
+    for paragraph in get_text('section2_text', lang).split('\n\n'):
+        if paragraph.strip():
+            story.append(Paragraph(paragraph.strip(), styles['body']))
 
     story.append(PageBreak())
 
-    # ── SEÇÃO 3 — RESULTADOS ──────────────────────────────────────────────────
-    story.append(Paragraph(SEC3_TITULO, styles['sec_titulo']))
+    # ── SECTION 3 — RESULTS ──────────────────────────────────────────────────
+    story.append(Paragraph(get_text('section3_title', lang), styles['section_title']))
     story.append(HRFlowable(width='100%', thickness=0.5,
                              color=colors.HexColor('#AAAAAA'),
                              spaceAfter=10))
-    story.append(Paragraph(SEC3_INTRO, styles['body']))
+    story.append(Paragraph(get_text('section3_intro', lang), styles['body']))
     story.append(Spacer(1, 0.4 * cm))
 
-    n_mapas = (f"{config.MULTIVERSE.n_maps} mapas"
-           if config.MULTIVERSE_MODE and config.MULTIVERSE
-           else "mapa simples")
+    if config.MULTIVERSE_MODE and config.MULTIVERSE:
+        n_maps = get_text('n_maps_multi', lang, n=config.MULTIVERSE.n_maps)
+    else:
+        n_maps = get_text('n_maps_single', lang)
 
-    contexto = (
-        f"Configuração da execução: limite de tempo de "
-        f"<b>{config.TEMPO_LIMITE:.1f}s</b>, {n_mapas}, "
-        f"nó inicial <b>{config.START_NODE}</b>, "
-        f"nó objetivo <b>{config.GOAL_NODE}</b>."
+    context = get_text(
+        'run_config_text', lang,
+        limit=f"{config.TEMPO_LIMITE:.1f}",
+        n_maps=n_maps,
+        start=config.START_NODE,
+        goal=config.GOAL_NODE,
     )
-    story.append(Paragraph(contexto, styles['body']))
+    story.append(Paragraph(context, styles['body']))
     story.append(Spacer(1, 0.3 * cm))
 
-    # tabela
-    story.append(_build_results_table(results, styles))
+    # table
+    story.append(_build_results_table(results, styles, lang))
     story.append(Spacer(1, 0.6 * cm))
 
-    # gráfico
+    # chart
     chart = _build_chart_reportlab(results, W - 2 * margin)
     if chart is not None:
         story.append(chart)
         story.append(Spacer(1, 0.6 * cm))
 
-    # conclusão
-    story.append(Paragraph(_build_conclusao(results), styles['conclusao']))
+    # conclusion
+    story.append(Paragraph(_build_conclusion(results, lang), styles['conclusion']))
 
     # ── build ──────────────────────────────────────────────────────────────────
     try:
         doc.build(story)
-        messagebox.showinfo('Relatório exportado',
-                            f'PDF salvo com sucesso em:\n{path}')
+        messagebox.showinfo(
+            get_text('export_success_title', lang),
+            get_text('export_success_message', lang, path=path))
     except Exception as e:
-        messagebox.showerror('Erro ao exportar', str(e))
+        messagebox.showerror(get_text('export_error_title', lang), str(e))

@@ -12,7 +12,7 @@ import  tkinter     as tk
 import  config
 from    config      import COLORS
 from    PIL         import Image, ImageTk
-from    algorithms.BuscaLocal import BuscaLocal
+from    algorithms.local_search import LocalSearch
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Utilitários de nó

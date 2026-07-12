@@ -33,6 +33,9 @@ _STRINGS = {
         'status_multiverse_generated': ('✓ Multiverse generated: {n_maps} maps, '
                                          '{n_portals} portals.'),
 
+        'status_generating_initial_solution': 'Generating initial solution...',
+        'status_initial_solution_done': '⬡ Initial solution: {n} nodes, cost {cost:.3f}s.',
+
         'about_title': 'About',
         'about_header': '◈  About  ◈',
         'about_developed_by': 'DEVELOPED BY',
@@ -82,7 +85,7 @@ _STRINGS = {
         'cp_btn_generate_multiverse': '🌀  GENERATE MULTIVERSE',
         'cp_btn_exit_multiverse':     '✕  EXIT MULTIVERSE',
         'cp_btn_comparative':         '◈  COMPARATIVE ANALYSIS',
-        'cp_btn_legend':              '◈  LEGEND / TERRAINS',
+        'cp_btn_legend':              '◈  SUBTITLES / TERRAINS',
         'cp_checkbox_animate':        'Path animation',
 
         # ── legend window ────────────────────────────────────────────────────
@@ -168,6 +171,9 @@ _STRINGS = {
         'status_generating_multiverse': 'Gerando multiverso...',
         'status_multiverse_generated': ('✓ Multiverso gerado: {n_maps} mapas, '
                                          '{n_portals} portais.'),
+
+        'status_generating_initial_solution': 'Gerando solução inicial...',
+        'status_initial_solution_done': '⬡ Solução inicial: {n} nós, custo {cost:.3f}s.',
 
         'about_title': 'Sobre',
         'about_header': '◈  Sobre  ◈',

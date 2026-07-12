@@ -1,49 +1,50 @@
 """
 algorithms/initial_solution.py
 ======================
-Handler para geração e exibição da solução inicial via BFS.
+Handler for generating and displaying the initial solution via BFS.
 """
 
 import config
+import i18n
 from config import COLORS
 from search_result import SearchResult
-from algorithms.busca_local_utils import _caminho_inicial, avalia_caminho, VELOCIDADE_INICIAL
-from algorithms.conversor import Conversor
-from algorithms.BuscaLocal import BuscaLocal
+from algorithms.local_search_utils import _initial_path, evaluate_path, INITIAL_SPEED
+from algorithms.converter import Converter
+from algorithms.local_search import LocalSearch
 
 
 def handle_initial_solution(app):
     """
-    Gera a solução inicial via BFS e atualiza a interface.
-    'app' é a instância de SearchApp.
+    Generate the initial solution via BFS and update the interface.
+    'app' is the SearchApp instance.
     """
     start = app.control.start_var.get()
     goal  = app.control.goal_var.get()
 
     if start == goal:
-        app.result.set_status('⚠ Estado inicial = objetivo.', COLORS['warning'])
+        app.result.set_status(i18n.t('status_start_eq_goal'), COLORS['warning'])
         return
 
-    app.result.set_status('Gerando solução inicial...', COLORS['accent'])
+    app.result.set_status(i18n.t('status_generating_initial_solution'), COLORS['accent'])
     app.update()
 
     tempo_limite = app.control.tempo_limite_var.get()
-    caminho = _caminho_inicial(start, goal, tempo_limite=tempo_limite)
+    path = _initial_path(start, goal, tempo_limite=tempo_limite)
 
-    if not caminho:
-        app.result.set_status('✗ Sem caminho encontrado.', COLORS['danger'])
+    if not path:
+        app.result.set_status(i18n.t('status_no_path'), COLORS['danger'])
         return
 
     if config.MULTIVERSE_MODE:
-        path_str = [Conversor.key_to_super_str(n) for n in caminho]
+        path_str = [Converter.key_to_super_str(n) for n in path]
     else:
-        path_str = [Conversor.tuple_to_str(n) for n in caminho]
+        path_str = [Converter.tuple_to_str(n) for n in path]
 
-    custo = BuscaLocal.tempo_caminho(caminho)
+    cost = LocalSearch.path_time(path)
 
     result = SearchResult(
         path=path_str,
-        cost=round(float(custo), 2),
+        cost=round(float(cost), 2),
         depth=len(path_str),
         profit=None,
     )
@@ -52,5 +53,5 @@ def handle_initial_solution(app):
     app.graph_canvas.render(path=path_str, start=start, goal=goal)
     app.result.update_result(result)
     app.result.set_status(
-        f'⬡ Solução inicial: {len(path_str)} nós, custo {custo:.3f}s.',
+        i18n.t('status_initial_solution_done', n=len(path_str), cost=cost),
         COLORS['text_dim'])

@@ -6,9 +6,9 @@ Têmpera Simulada (Simulated Annealing).
 
 import  config
 from    search_result                import SearchResult
-from    algorithms.BuscaLocal        import BuscaLocal
-from    algorithms.conversor         import Conversor
-from    algorithms.busca_local_utils import _caminho_inicial, avalia_caminho, VELOCIDADE_INICIAL
+from    algorithms.local_search        import LocalSearch
+from    algorithms.converter         import Converter
+from    algorithms.local_search_utils import _initial_path, evaluate_path, INITIAL_SPEED
 
 T1_DEFAULT = 100.0
 TF_DEFAULT = 0.1
@@ -17,20 +17,20 @@ FR_DEFAULT = 0.95
 
 def search(start: str, goal: str, graph: dict,
            tmax=None, t1=T1_DEFAULT, tf=TF_DEFAULT, fr=FR_DEFAULT,
-           velocidade_entrada=None, tempo_limite=None) -> SearchResult:
+           initial_speed=None, tempo_limite=None) -> SearchResult:
 
-    s1 = _caminho_inicial(start, goal, tempo_limite=tempo_limite)
+    s1 = _initial_path(start, goal, tempo_limite=tempo_limite)
     if s1 is None:
         return SearchResult()
 
-    bl = BuscaLocal()
+    bl = LocalSearch()
 
-    vel = velocidade_entrada if velocidade_entrada is not None else VELOCIDADE_INICIAL
-    v1 = avalia_caminho(s1, velocidade_entrada=vel)  # tempo inicial do caminho
+    vel = initial_speed if initial_speed is not None else INITIAL_SPEED
+    v1 = evaluate_path(s1, initial_speed=vel)  # tempo inicial do caminho
 
     if v1 == float('-inf') or v1 == 0.0:          # ← caminho truncado, não há solução válida
-        conv = Conversor.key_to_super_str if config.MULTIVERSE_MODE else Conversor.tuple_to_str
-        tempo = BuscaLocal.tempo_caminho(s1, vel)
+        conv = Converter.key_to_super_str if config.MULTIVERSE_MODE else Converter.tuple_to_str
+        tempo = LocalSearch.path_time(s1, vel)
         return SearchResult(
             path=  [conv(n) for n in s1],
             cost=  round(float(tempo), 2),
@@ -38,12 +38,12 @@ def search(start: str, goal: str, graph: dict,
             profit= 0.0
         )
 
-    caminho, fitness, vel, tempo = bl.tempera(
+    caminho, fitness, vel, tempo = bl.simulated_annealing(
         s1, v1, t1, tf, fr,
         vel, tempo_limite=tempo_limite
     )
 
-    conv = Conversor.key_to_super_str if config.MULTIVERSE_MODE else Conversor.tuple_to_str
+    conv = Converter.key_to_super_str if config.MULTIVERSE_MODE else Converter.tuple_to_str
     return SearchResult(
         path=[conv(n) for n in caminho],
         cost=round(float(tempo), 2),

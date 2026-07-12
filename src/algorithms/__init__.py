@@ -9,18 +9,18 @@ from search_result import SearchResult
 
 # ── algorithm imports ──────────────────────────────────────────────────────
 
-from algorithms.encosta             import search as encosta_search
-from algorithms.encosta_tentativa   import search as encosta_tentativa_search
-from algorithms.tempera             import search as tempera_search
-from algorithms.ag                  import search as ag_search
+from algorithms.hill_climbing                import search as hill_climbing_search
+from algorithms.hill_climbing_random_restart import search as hill_climbing_random_restart_search
+from algorithms.simulated_annealing          import search as simulated_annealing_search
+from algorithms.ga                           import search as ga_search
 
 # Canonical (English) method keys — must match config.SEARCH_METHODS exactly,
 # since those are the values selected in ui/control_panel.py's dropdown.
 REGISTRY: dict[str, callable] = {
-    'Hill Climbing':                  encosta_search,
-    'Hill Climbing (Random Restart)': encosta_tentativa_search,
-    'Simulated Annealing':            tempera_search,
-    'Genetic Algorithm':              ag_search,
+    'Hill Climbing':                  hill_climbing_search,
+    'Hill Climbing (Random Restart)': hill_climbing_random_restart_search,
+    'Simulated Annealing':            simulated_annealing_search,
+    'Genetic Algorithm':              ga_search,
 }
 
 LOCAL_SEARCH_METHODS = {

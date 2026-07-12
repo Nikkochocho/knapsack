@@ -8,8 +8,8 @@ Fitness    = tempo total do caminho (maior = melhor), -inf se ultrapassar tempo_
 
 import random
 from math import ceil
-from algorithms.BuscaLocal import BuscaLocal
-from algorithms.busca_local_utils import _caminho_inicial, _bfs_trecho, avalia_caminho
+from algorithms.local_search import LocalSearch
+from algorithms.local_search_utils import _initial_path, _bfs_segment, evaluate_path
 import config
 
 
@@ -20,7 +20,7 @@ def pop_ini(tp: int, start: str, goal: str, velocidade: float, tempo_limite: flo
     Gera população inicial: tp variações do caminho BFS base via sucessores.
     Garante que todos os indivíduos são caminhos válidos start→goal.
     """
-    base = _caminho_inicial(start, goal, tempo_limite)
+    base = _initial_path(start, goal, tempo_limite)
     return [base] if base is not None else []
 
 
@@ -31,7 +31,7 @@ def aptidao(pop: list, velocidade: float, tempo_limite: float) -> list[float]:
     Calcula fitness de cada indivíduo e normaliza para uso na roleta.
     Indivíduos inválidos (fitness=-inf) recebem peso 0.
     """
-    raw = [avalia_caminho(ind, velocidade, tempo_limite) for ind in pop]
+    raw = [evaluate_path(ind, velocidade, tempo_limite) for ind in pop]
 
     # substitui -inf por 0 para não quebrar a normalização
     positivos = [f if f != float('-inf') else 0.0 for f in raw]
@@ -79,7 +79,7 @@ def cruzamento(pai1: list, pai2: list) -> tuple[list, list]:
     corte = random.randint(1, n - 2)
 
     def _reconecta(prefixo, sufixo):
-        ponte = _bfs_trecho(prefixo[-1], sufixo[0])
+        ponte = _bfs_segment(prefixo[-1], sufixo[0])
         if ponte is None:
             return None
         return prefixo + ponte[1:] + sufixo[1:]   # evita duplicar nós da junção
@@ -112,7 +112,7 @@ def mutacao(individuo: list, velocidade: float, tempo_limite: float) -> list:
     # remove o nó i e reconecta seus vizinhos
     sem_i = list(individuo)
     sem_i.pop(i)
-    ponte_gap = _bfs_trecho(sem_i[i - 1], sem_i[i])   # vizinhos do buraco
+    ponte_gap = _bfs_segment(sem_i[i - 1], sem_i[i])   # vizinhos do buraco
     if ponte_gap is None:
         return list(individuo)
 
@@ -120,8 +120,8 @@ def mutacao(individuo: list, velocidade: float, tempo_limite: float) -> list:
 
     # insere no_movido na posição j da nova sequência (ajustada)
     j_adj = min(j, len(base) - 2)
-    ponte_antes = _bfs_trecho(base[j_adj - 1], no_movido)
-    ponte_depois = _bfs_trecho(no_movido, base[j_adj])
+    ponte_antes = _bfs_segment(base[j_adj - 1], no_movido)
+    ponte_depois = _bfs_segment(no_movido, base[j_adj])
     if ponte_antes is None or ponte_depois is None:
         return list(individuo)
 
@@ -172,13 +172,13 @@ def ajusta_restricao(pop: list, velocidade: float, tempo_limite: float) -> list:
 
         # reconecta ind[:corte+1] → goal via BFS
         if corte > 0:
-            trecho = _bfs_trecho(ind[corte], goal)
+            trecho = _bfs_segment(ind[corte], goal)
             if trecho:
                 ajustados.append(ind[:corte] + trecho)
                 continue
 
         # fallback: caminho BFS direto start→goal
-        fallback = _caminho_inicial(ind[0], goal)
+        fallback = _initial_path(ind[0], goal)
         ajustados.append(fallback if fallback else ind)
 
     return ajustados
@@ -263,7 +263,7 @@ def AG(start: str, goal: str,
 
     fit = aptidao(pop, velocidade, tempo_limite)
     pop, fit = ordena(pop, fit)
-    si, vi = pop[0], avalia_caminho(pop[0], velocidade, tempo_limite)
+    si, vi = pop[0], evaluate_path(pop[0], velocidade, tempo_limite)
 
     for _ in range(ng):
         desc = descendentes(pop, fit, tp, tc, tm, velocidade, tempo_limite)
@@ -277,5 +277,5 @@ def AG(start: str, goal: str,
         pop, fit = ordena(pop, fit)
 
     sf = pop[0]
-    vf = avalia_caminho(sf, velocidade, tempo_limite)
+    vf = evaluate_path(sf, velocidade, tempo_limite)
     return si, sf, vi, vf
