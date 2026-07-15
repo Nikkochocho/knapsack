@@ -102,9 +102,9 @@ class SearchApp(tk.Tk):
         self.control.animate_var.trace_add(
             'write', lambda *_: self.graph_canvas.set_animate(
                 self.control.animate_var.get()))
-        self.control.tempo_limite_var.trace_add(
-            'write', lambda *_: setattr(config, 'TEMPO_LIMITE',
-                                        self.control.tempo_limite_var.get()))
+        self.control.time_limit_var.trace_add(
+            'write', lambda *_: setattr(config, 'TIME_LIMIT',
+                                        self.control.time_limit_var.get()))
 
         self.result = ResultPanel(body, fonts=self._fonts)
         self.result.pack(side='right', fill='y', padx=(4, 8), pady=8)
@@ -178,6 +178,14 @@ class SearchApp(tk.Tk):
             if panel is not None and hasattr(panel, 'refresh_language'):
                 panel.refresh_language()
 
+        # The graph canvas redraws all of its text (e.g. the multiverse map
+        # banner) from scratch on every render, so a plain re-render is
+        # enough to pick up the new language immediately.
+        if hasattr(self, 'graph_canvas'):
+            self.graph_canvas.render(
+                path=self._last_path, start=self._last_start,
+                goal=self._last_goal, static=True)
+
     def _open_settings(self):
         """Open the settings window to switch the interface language."""
         win = tk.Toplevel(self)
@@ -186,7 +194,7 @@ class SearchApp(tk.Tk):
         win.configure(bg=COLORS['panel'])
         win.grab_set()
 
-        w, h = 320, 190
+        w, h = 380, 190
         win.withdraw()
         self.update_idletasks()
         x = self.winfo_x() + (self.winfo_width()  - w) // 2
@@ -221,6 +229,7 @@ class SearchApp(tk.Tk):
 
         _lang_button(btn_row, 'English', 'en').pack(side='left', padx=6)
         _lang_button(btn_row, 'Português', 'pt').pack(side='left', padx=6)
+        _lang_button(btn_row, 'Español', 'es').pack(side='left', padx=6)   
 
         tk.Button(win, text=i18n.t('settings_close'),
                   font=self._fonts['label'],
@@ -233,7 +242,7 @@ class SearchApp(tk.Tk):
     def _handle_search(self, method: str, start: str, goal: str,
                    tmax: int = 20,
                    t1: float = 100.0, tf: float = 0.1, fr: float = 0.95,
-                   tempo_limite: float = 10.0,
+                   time_limit: float = 10.0,
                    tp=10, ng=20, tc=0.8, tm=0.1, ig=0.2):
 
         config.ACTIVE_METHOD = method
@@ -256,12 +265,12 @@ class SearchApp(tk.Tk):
             t1=t1,
             tf=tf,
             fr=fr,
-            tempo_limite=tempo_limite,
+            time_limit=time_limit,
             tp=tp, ng=ng, tc=tc, tm=tm, ig=ig,
         )
 
         config.GOAL_REACHED = result.path[-1] == goal if result.path else False
-        config.TEMPO_LIMITE = self.control.tempo_limite_var.get()
+        config.TIME_LIMIT = self.control.time_limit_var.get()
         self.graph_canvas.reset_visited()
         self.graph_canvas.render(path=result.path, start=start, goal=goal)
         self.result.update_result(result)
@@ -274,7 +283,7 @@ class SearchApp(tk.Tk):
             self.result.set_status(i18n.t('status_no_path'), COLORS['danger'])
         elif result.path[-1] != goal:
             self.result.set_status(
-                i18n.t('status_time_limit', cost=result.cost, limit=config.TEMPO_LIMITE),
+                i18n.t('status_time_limit', cost=result.cost, limit=config.TIME_LIMIT),
                 COLORS['warning'])
         else:
             self.result.set_status(
@@ -426,6 +435,7 @@ class SearchApp(tk.Tk):
                  font=(font_family, base_size, 'bold'),
                  bg=COLORS['panel'], fg=COLORS['accent']).pack()
 
+        # Author names are intentionally not translated.
         tk.Label(main_frame,
                  text='Guilherme Carvalho Alvarenga & Lara Hydalgo Ferreira',
                  font=(self._fonts['label'], base_size + 2, 'bold'),

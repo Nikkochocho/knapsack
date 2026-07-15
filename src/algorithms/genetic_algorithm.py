@@ -1,9 +1,9 @@
 """
-algorithms/AlgoritmoGenetico.py
+algorithms/genetic_algorithm.py
 ================================
-AG adaptado para maximização de tempo percorrido em grafos ponderados.
-Cromossomo = lista de nós [(r,c), ...] representando um caminho válido.
-Fitness    = tempo total do caminho (maior = melhor), -inf se ultrapassar tempo_limite.
+GA adapted for maximizing travel time on weighted graphs.
+Chromosome = list of nodes [(r,c), ...] representing a valid path.
+Fitness    = total path time (higher = better), -inf if it exceeds time_limit.
 """
 
 import random
@@ -13,269 +13,270 @@ from algorithms.local_search_utils import _initial_path, _bfs_segment, evaluate_
 import config
 
 
-# ── população ────────────────────────────────────────────────────────────────
+# ── population ───────────────────────────────────────────────────────────────
 
-def pop_ini(tp: int, start: str, goal: str, velocidade: float, tempo_limite: float) -> list:
+def initial_population(tp: int, start: str, goal: str, speed: float, time_limit: float) -> list:
     """
-    Gera população inicial: tp variações do caminho BFS base via sucessores.
-    Garante que todos os indivíduos são caminhos válidos start→goal.
+    Generate the initial population: tp variations of the base BFS path via
+    successors. Guarantees every individual is a valid start→goal path.
     """
-    base = _initial_path(start, goal, tempo_limite)
+    base = _initial_path(start, goal, time_limit)
     return [base] if base is not None else []
 
 
-# ── avaliação ─────────────────────────────────────────────────────────────────
+# ── evaluation ────────────────────────────────────────────────────────────────
 
-def aptidao(pop: list, velocidade: float, tempo_limite: float) -> list[float]:
+def compute_fitness(population: list, speed: float, time_limit: float) -> list[float]:
     """
-    Calcula fitness de cada indivíduo e normaliza para uso na roleta.
-    Indivíduos inválidos (fitness=-inf) recebem peso 0.
+    Compute each individual's fitness and normalize it for roulette-wheel use.
+    Invalid individuals (fitness = -inf) get weight 0.
     """
-    raw = [evaluate_path(ind, velocidade, tempo_limite) for ind in pop]
+    raw = [evaluate_path(ind, speed, time_limit) for ind in population]
 
-    # substitui -inf por 0 para não quebrar a normalização
-    positivos = [f if f != float('-inf') else 0.0 for f in raw]
+    # replace -inf with 0 so it doesn't break normalization
+    positive = [f if f != float('-inf') else 0.0 for f in raw]
 
-    soma = sum(positivos)
-    if soma == 0:
-        n = len(positivos)
-        return [1.0 / n] * n  # distribuição uniforme se todos inválidos
+    total = sum(positive)
+    if total == 0:
+        n = len(positive)
+        return [1.0 / n] * n  # uniform distribution if all are invalid
 
-    return [f / soma for f in positivos]
+    return [f / total for f in positive]
 
 
-# ── seleção ───────────────────────────────────────────────────────────────────
+# ── selection ─────────────────────────────────────────────────────────────────
 
-def roleta(fit: list[float]) -> int:
-    """Seleciona índice por roleta viciada proporcional ao fitness."""
-    ale  = random.random()
-    soma = 0.0
-    for i, f in enumerate(fit):
-        soma += f
-        if soma >= ale:
+def roulette_wheel_selection(fitness: list[float]) -> int:
+    """Select an index via fitness-proportionate roulette-wheel selection."""
+    rnd   = random.random()
+    total = 0.0
+    for i, f in enumerate(fitness):
+        total += f
+        if total >= rnd:
             return i
-    return len(fit) - 1
+    return len(fitness) - 1
 
 
-def torneio(fit: list[float]) -> int:
-    """Seleciona índice por torneio binário."""
-    p1 = random.randrange(len(fit))
-    p2 = random.randrange(len(fit))
-    return p1 if fit[p1] >= fit[p2] else p2
+def tournament_selection(fitness: list[float]) -> int:
+    """Select an index via binary tournament."""
+    p1 = random.randrange(len(fitness))
+    p2 = random.randrange(len(fitness))
+    return p1 if fitness[p1] >= fitness[p2] else p2
 
 
-# ── cruzamento ────────────────────────────────────────────────────────────────
+# ── crossover ─────────────────────────────────────────────────────────────────
 
-def cruzamento(pai1: list, pai2: list) -> tuple[list, list]:
+def crossover(parent1: list, parent2: list) -> tuple[list, list]:
     """
-    Cruzamento por corte posicional.
-    Sorteia um índice de corte, BFS reconecta as metades.
-    Se BFS falhar, retorna cópias dos pais.
+    Positional-cut crossover.
+    Picks a random cut point; BFS reconnects the two halves.
+    If BFS fails, returns copies of the parents.
     """
-    n    = min(len(pai1), len(pai2))
+    n = min(len(parent1), len(parent2))
     if n < 4:
-        return list(pai1), list(pai2)
+        return list(parent1), list(parent2)
 
-    corte = random.randint(1, n - 2)
+    cut = random.randint(1, n - 2)
 
-    def _reconecta(prefixo, sufixo):
-        ponte = _bfs_segment(prefixo[-1], sufixo[0])
-        if ponte is None:
+    def _reconnect(prefix, suffix):
+        bridge = _bfs_segment(prefix[-1], suffix[0])
+        if bridge is None:
             return None
-        return prefixo + ponte[1:] + sufixo[1:]   # evita duplicar nós da junção
+        return prefix + bridge[1:] + suffix[1:]   # avoids duplicating the junction nodes
 
-    f1 = _reconecta(pai1[:corte], pai2[corte:])
-    f2 = _reconecta(pai2[:corte], pai1[corte:])
-    return (f1 if f1 else list(pai1)), (f2 if f2 else list(pai2))
+    child1 = _reconnect(parent1[:cut], parent2[cut:])
+    child2 = _reconnect(parent2[:cut], parent1[cut:])
+    return (child1 if child1 else list(parent1)), (child2 if child2 else list(parent2))
 
 
-# ── mutação ───────────────────────────────────────────────────────────────────
+# ── mutation ──────────────────────────────────────────────────────────────────
 
-def mutacao(individuo: list, velocidade: float, tempo_limite: float) -> list:
+def mutation(individual: list, speed: float, time_limit: float) -> list:
     """
-    Mutação por translocação: move um nó intermediário para outra posição
-    e usa BFS para reconectar os vizinhos afetados.
-    Se qualquer BFS falhar, retorna o indivíduo sem alteração.
+    Translocation mutation: moves an intermediate node to another position
+    and uses BFS to reconnect the affected neighbors.
+    If any BFS call fails, returns the individual unchanged.
     """
-    n = len(individuo)
+    n = len(individual)
     if n < 5:
-        return list(individuo)
+        return list(individual)
 
-    # sorteia o nó a mover (i) e o destino (j), ambos intermediários
+    # pick the node to move (i) and its destination (j), both intermediate
     i = random.randint(1, n - 3)
     j = random.randint(1, n - 3)
     if i == j:
-        return list(individuo)
+        return list(individual)
 
-    no_movido = individuo[i]
+    moved_node = individual[i]
 
-    # remove o nó i e reconecta seus vizinhos
-    sem_i = list(individuo)
-    sem_i.pop(i)
-    ponte_gap = _bfs_segment(sem_i[i - 1], sem_i[i])   # vizinhos do buraco
-    if ponte_gap is None:
-        return list(individuo)
+    # remove node i and reconnect its neighbors
+    without_i = list(individual)
+    without_i.pop(i)
+    gap_bridge = _bfs_segment(without_i[i - 1], without_i[i])   # neighbors of the gap
+    if gap_bridge is None:
+        return list(individual)
 
-    base = sem_i[:i - 1] + ponte_gap + sem_i[i + 1:]
+    base_path = without_i[:i - 1] + gap_bridge + without_i[i + 1:]
 
-    # insere no_movido na posição j da nova sequência (ajustada)
-    j_adj = min(j, len(base) - 2)
-    ponte_antes = _bfs_segment(base[j_adj - 1], no_movido)
-    ponte_depois = _bfs_segment(no_movido, base[j_adj])
-    if ponte_antes is None or ponte_depois is None:
-        return list(individuo)
+    # insert moved_node at position j of the new sequence (adjusted)
+    adjusted_j     = min(j, len(base_path) - 2)
+    bridge_before  = _bfs_segment(base_path[adjusted_j - 1], moved_node)
+    bridge_after   = _bfs_segment(moved_node, base_path[adjusted_j])
+    if bridge_before is None or bridge_after is None:
+        return list(individual)
 
-    return base[:j_adj - 1] + ponte_antes + ponte_depois[1:] + base[j_adj + 1:]
+    return base_path[:adjusted_j - 1] + bridge_before + bridge_after[1:] + base_path[adjusted_j + 1:]
 
 
-# ── restrição ─────────────────────────────────────────────────────────────────
+# ── constraint enforcement ─────────────────────────────────────────────────────
 
-def ajusta_restricao(pop: list, velocidade: float, tempo_limite: float) -> list:
+def enforce_constraint(population: list, speed: float, time_limit: float) -> list:
     """
-    Garante que nenhum indivíduo ultrapassa tempo_limite.
-    Estratégia: trunca no último nó antes de estourar e reconecta ao goal via BFS.
+    Ensures no individual exceeds time_limit.
+    Strategy: truncate at the last node before going over, then reconnect
+    to the goal via BFS.
     """
-    goal = pop[0][-1]  # todos os indivíduos compartilham o mesmo goal
-    ajustados = []
+    goal = population[0][-1]  # all individuals share the same goal
+    adjusted = []
 
-    for ind in pop:
-        tempo   = 0.0
-        vel_sim = velocidade
-        corte   = 0
+    for ind in population:
+        elapsed_time = 0.0
+        sim_speed    = speed
+        cut_idx      = 0
 
-        for idx, no in enumerate(ind[1:], start=1):
+        for idx, node in enumerate(ind[1:], start=1):
             if config.MULTIVERSE_MODE:
-                map_id, (r, c) = no
-                w  = config.MULTIVERSE.maps[map_id].grid_weights
-                tm = config.MULTIVERSE.maps[map_id].terrain_map
+                map_id, (r, c) = node
+                weights     = config.MULTIVERSE.maps[map_id].grid_weights
+                terrain_map = config.MULTIVERSE.maps[map_id].terrain_map
             else:
-                r, c = no
-                w  = config.GRID_WEIGHTS
-                tm = config.TERRAIN_MAP
+                r, c = node
+                weights     = config.GRID_WEIGHTS
+                terrain_map = config.TERRAIN_MAP
 
-            peso    = w[r][c] or 1.0
-            terreno = tm[r][c] if tm else None
-            fator   = config.FATORES.get(terreno.name, 1.0) if terreno else 1.0
+            weight  = weights[r][c] or 1.0
+            terrain = terrain_map[r][c] if terrain_map else None
+            factor  = config.FATORES.get(terrain.name, 1.0) if terrain else 1.0
 
-            delay   = max(50, min((peso / vel_sim) * 1000, 2000))
-            tempo  += delay / 1000
+            delay          = max(50, min((weight / sim_speed) * 1000, 2000))
+            elapsed_time  += delay / 1000
 
-            if tempo > tempo_limite:
-                corte = idx - 1  # último nó ainda dentro do limite
+            if elapsed_time > time_limit:
+                cut_idx = idx - 1  # last node still within the limit
                 break
 
-            vel_sim = max(config.VELOCIDADE_MIN,
-                          min(vel_sim * fator, config.VELOCIDADE_MAX))
+            sim_speed = max(config.VELOCIDADE_MIN,
+                            min(sim_speed * factor, config.VELOCIDADE_MAX))
         else:
-            ajustados.append(ind)  # já válido, sem corte necessário
+            adjusted.append(ind)  # already valid, no truncation needed
             continue
 
-        # reconecta ind[:corte+1] → goal via BFS
-        if corte > 0:
-            trecho = _bfs_segment(ind[corte], goal)
-            if trecho:
-                ajustados.append(ind[:corte] + trecho)
+        # reconnect ind[:cut_idx+1] → goal via BFS
+        if cut_idx > 0:
+            segment = _bfs_segment(ind[cut_idx], goal)
+            if segment:
+                adjusted.append(ind[:cut_idx] + segment)
                 continue
 
-        # fallback: caminho BFS direto start→goal
+        # fallback: direct BFS path start→goal
         fallback = _initial_path(ind[0], goal)
-        ajustados.append(fallback if fallback else ind)
+        adjusted.append(fallback if fallback else ind)
 
-    return ajustados
-
-
-# ── ordenação ─────────────────────────────────────────────────────────────────
-
-def ordena(pop: list, fit: list[float]) -> tuple[list, list[float]]:
-    """Ordena população por fitness decrescente (maior fitness primeiro)."""
-    pares = sorted(zip(pop, fit), key=lambda x: x[1], reverse=True)
-    pop_ord, fit_ord = zip(*pares)
-    return list(pop_ord), list(fit_ord)
+    return adjusted
 
 
-# ── nova população ────────────────────────────────────────────────────────────
+# ── sorting ───────────────────────────────────────────────────────────────────
 
-def nova_pop(pop: list, desc: list, tp: int, ig: float) -> list:
+def sort_population(population: list, fitness: list[float]) -> tuple[list, list[float]]:
+    """Sort the population by descending fitness (highest fitness first)."""
+    pairs = sorted(zip(population, fitness), key=lambda x: x[1], reverse=True)
+    sorted_population, sorted_fitness = zip(*pairs)
+    return list(sorted_population), list(sorted_fitness)
+
+
+# ── next generation ─────────────────────────────────────────────────────────────
+
+def next_generation(population: list, offspring: list, tp: int, ig: float) -> list:
     """
-    Elitismo: mantém os melhores ceil(ig*tp) da população atual,
-    completa com os melhores descendentes.
+    Elitism: keeps the best ceil(ig*tp) individuals from the current
+    population, fills the rest with the best offspring.
     """
-    elite = ceil(ig * tp)
-    return pop[:elite] + desc[:tp - elite]
+    elite_count = ceil(ig * tp)
+    return population[:elite_count] + offspring[:tp - elite_count]
 
 
-# ── descendentes ─────────────────────────────────────────────────────────────
+# ── offspring ─────────────────────────────────────────────────────────────────
 
-def descendentes(pop: list, fit: list[float], tp: int,
-                 tc: float, tm: float,
-                 velocidade: float, tempo_limite: float) -> list:
+def generate_offspring(population: list, fitness: list[float], tp: int,
+                       tc: float, tm: float,
+                       speed: float, time_limit: float) -> list:
     """
-    Gera 2*tp descendentes via cruzamento e mutação.
-    Usa roleta para seleção dos pais.
+    Generates 2*tp offspring via crossover and mutation.
+    Uses roulette-wheel selection to pick the parents.
     """
-    desc = []
-    while len(desc) < 2 * tp:
-        pai1 = pop[roleta(fit)]
-        pai2 = pop[roleta(fit)]
+    offspring = []
+    while len(offspring) < 2 * tp:
+        parent1 = population[roulette_wheel_selection(fitness)]
+        parent2 = population[roulette_wheel_selection(fitness)]
 
         if random.random() <= tc:
-            f1, f2 = cruzamento(pai1, pai2)
+            child1, child2 = crossover(parent1, parent2)
         else:
-            f1, f2 = list(pai1), list(pai2)
+            child1, child2 = list(parent1), list(parent2)
 
         if random.random() <= tm:
-            f1 = mutacao(f1, velocidade, tempo_limite)
+            child1 = mutation(child1, speed, time_limit)
         if random.random() <= tm:
-            f2 = mutacao(f2, velocidade, tempo_limite)
+            child2 = mutation(child2, speed, time_limit)
 
-        desc.extend([f1, f2])
+        offspring.extend([child1, child2])
 
-    return desc[:2 * tp]
+    return offspring[:2 * tp]
 
 
-# ── algoritmo principal ───────────────────────────────────────────────────────
+# ── main algorithm ────────────────────────────────────────────────────────────
 
-def AG(start: str, goal: str,
-       velocidade: float, tempo_limite: float,
+def GA(start: str, goal: str,
+       speed: float, time_limit: float,
        tp: int = 10, ng: int = 20,
        tc: float = 0.8, tm: float = 0.1, ig: float = 0.2):
     """
-    Algoritmo Genético para maximização de tempo percorrido (≤ tempo_limite).
+    Genetic Algorithm for maximizing travel time (≤ time_limit).
 
-    Parâmetros
+    Parameters
     ----------
-    start, goal     : nós de início e fim (string)
-    velocidade      : velocidade inicial do personagem
-    tempo_limite    : capacidade máxima — equivalente ao C_MAX da mochila
-    tp              : tamanho da população
-    ng              : número de gerações
-    tc              : taxa de cruzamento
-    tm              : taxa de mutação
-    ig              : fração de elite preservada por geração
+    start, goal   : start and goal nodes (string)
+    speed         : the agent's initial speed
+    time_limit  : maximum capacity — equivalent to the knapsack's C_MAX
+    tp            : population size
+    ng            : number of generations
+    tc            : crossover rate
+    tm            : mutation rate
+    ig            : fraction of elite individuals preserved per generation
 
-    Retorno
+    Returns
     -------
-    (caminho_inicial, caminho_final, fitness_inicial, fitness_final)
+    (initial_path, final_path, initial_fitness, final_fitness)
     """
-    pop = pop_ini(tp, start, goal, velocidade, tempo_limite)
-    if not pop:
+    population = initial_population(tp, start, goal, speed, time_limit)
+    if not population:
         return None, None, 0.0, 0.0
 
-    fit = aptidao(pop, velocidade, tempo_limite)
-    pop, fit = ordena(pop, fit)
-    si, vi = pop[0], evaluate_path(pop[0], velocidade, tempo_limite)
+    fitness = compute_fitness(population, speed, time_limit)
+    population, fitness = sort_population(population, fitness)
+    initial_path, initial_value = population[0], evaluate_path(population[0], speed, time_limit)
 
     for _ in range(ng):
-        desc = descendentes(pop, fit, tp, tc, tm, velocidade, tempo_limite)
-        desc = ajusta_restricao(desc, velocidade, tempo_limite)
+        offspring = generate_offspring(population, fitness, tp, tc, tm, speed, time_limit)
+        offspring = enforce_constraint(offspring, speed, time_limit)
 
-        fit_d       = aptidao(desc, velocidade, tempo_limite)
-        desc, fit_d = ordena(desc, fit_d)
+        offspring_fitness           = compute_fitness(offspring, speed, time_limit)
+        offspring, offspring_fitness = sort_population(offspring, offspring_fitness)
 
-        pop  = nova_pop(pop, desc, tp, ig)
-        fit  = aptidao(pop, velocidade, tempo_limite)
-        pop, fit = ordena(pop, fit)
+        population = next_generation(population, offspring, tp, ig)
+        fitness    = compute_fitness(population, speed, time_limit)
+        population, fitness = sort_population(population, fitness)
 
-    sf = pop[0]
-    vf = evaluate_path(sf, velocidade, tempo_limite)
-    return si, sf, vi, vf
+    final_path  = population[0]
+    final_value = evaluate_path(final_path, speed, time_limit)
+    return initial_path, final_path, initial_value, final_value

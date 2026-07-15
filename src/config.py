@@ -173,7 +173,7 @@ GOAL_NODE:      str               = "(14,14)"
 NODE_POSITIONS: dict              = {}
 ACTIVE_METHOD:  str               = ''
 LAST_VELOCITY:  float             = 1.0
-TEMPO_LIMITE:   float             = 10.0
+TIME_LIMIT:   float             = 10.0
 GOAL_REACHED:   bool              = True
 
 FATORES: dict[str, float] = {

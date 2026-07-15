@@ -210,6 +210,109 @@ TEXTS: dict[str, dict] = {
         'export_success_message': 'PDF salvo com sucesso em:\n{path}',
         'export_error_title':     'Erro ao exportar',
     },
+    'es': {
+        'title':    "INFORME DE INTELIGENCIA ARTIFICIAL I",
+        'subtitle': "Algoritmos de Búsqueda Local y AG para el Problema de la Mochila",
+        'members_label': 'Integrantes:',
+
+        'section1_title': "1. INTRODUCCIÓN",
+        'section1_text': (
+            "Este informe presenta los resultados de experimentos realizados con "
+            "algoritmos de búsqueda local y un algoritmo genético aplicados al "
+            "Problema de la Mochila bajo una restricción de tiempo de "
+            "desplazamiento. El problema consiste en determinar el mejor camino "
+            "entre dos puntos en un mapa generado de forma procedural, compuesto "
+            "por diferentes tipos de terreno — llanura, bosque, pantano y montaña "
+            "— cada uno con su propio factor que modifica la velocidad de "
+            "desplazamiento del agente."
+            "\n\n"
+            "El objetivo principal es maximizar el aprovechamiento del tiempo "
+            "disponible (la capacidad de la mochila), encontrando caminos que "
+            "permitan al agente recorrer la mayor distancia posible sin superar "
+            "el límite de tiempo estipulado. La ganancia de cada solución se "
+            "calcula en relación con la solución inicial generada por búsqueda "
+            "en anchura (BFS), que sirve como línea base para comparar los "
+            "métodos."
+        ),
+
+        'section2_title': "2. METODOLOGÍA",
+        'section2_text': (
+            "Se implementaron y evaluaron cuatro algoritmos de búsqueda local, "
+            "cada uno con características distintas en cuanto a la forma de "
+            "explorar el espacio de soluciones:"
+            "\n\n"
+            "Ascenso de Colinas (AC): un algoritmo voraz que solo acepta "
+            "movimientos que mejoren el valor de la solución actual. Tiende a "
+            "converger rápidamente, pero puede quedar atrapado en óptimos "
+            "locales."
+            "\n\n"
+            "Ascenso de Colinas con Reinicio Aleatorio (ACR): una variante que "
+            "tolera un número máximo de iteraciones sin mejora (parámetro TMAX) "
+            "antes de detenerse, dándole mayor resistencia a las mesetas."
+            "\n\n"
+            "Recocido Simulado (RS): inspirado en el proceso físico de recocido "
+            "de metales, acepta soluciones peores con una probabilidad que "
+            "disminuye a medida que baja la temperatura. Sus parámetros "
+            "controlan la temperatura inicial (TI), la temperatura final (TF) y "
+            "el factor de enfriamiento (FR)."
+            "\n\n"
+            "Algoritmo Genético (AG): basado en mecanismos de la evolución "
+            "biológica, opera sobre una población de soluciones mediante "
+            "operadores de selección, cruce y mutación. Sus parámetros incluyen "
+            "el tamaño de la población (TP), el número de generaciones (NG), la "
+            "tasa de cruce (TC), la tasa de mutación (TM) y la fracción de "
+            "elitismo (IG)."
+            "\n\n"
+            "La solución inicial de cada ejecución se genera mediante búsqueda "
+            "en anchura (BFS), garantizando un camino válido entre los estados "
+            "inicial y objetivo. El fitness de cada solución se calcula como el "
+            "tiempo total de desplazamiento dentro del límite establecido, y la "
+            "ganancia porcentual se obtiene de la razón entre la mejora lograda "
+            "y el límite de tiempo."
+            "\n\n"
+            "Los datos se recopilaron mediante la herramienta de Análisis "
+            "Comparativo integrada en la aplicación, que permite configurar "
+            "individualmente los parámetros de cada algoritmo y definir el "
+            "número de ejecuciones por método. El costo final reportado "
+            "corresponde a la media aritmética de las ejecuciones realizadas, "
+            "al igual que la ganancia porcentual promedio en relación con la "
+            "solución inicial."
+        ),
+
+        'section3_title': "3. RESULTADOS",
+        'section3_intro': (
+            "A continuación se presentan los resultados obtenidos en los "
+            "experimentos, incluyendo la tabla comparativa con los principales "
+            "indicadores de rendimiento de cada configuración probada y el "
+            "gráfico de barras con las ganancias porcentuales alcanzadas."
+        ),
+        'run_config_text': (
+            "Configuración de la ejecución: límite de tiempo de <b>{limit}s</b>, "
+            "{n_maps}, nodo inicial <b>{start}</b>, nodo objetivo <b>{goal}</b>."
+        ),
+        'n_maps_multi':  '{n} mapas',
+        'n_maps_single': 'mapa único',
+
+        'conclusion_template': (
+            "En las pruebas realizadas, el algoritmo con el mejor resultado fue "
+            "{method}, utilizando la configuración {config}, con un tiempo de "
+            "{time}s para un límite de {limit}s y una ganancia del {gain}% en "
+            "relación con la solución inicial generada por BFS."
+        ),
+        'conclusion_no_result': (
+            "No fue posible determinar el mejor resultado porque ningún "
+            "algoritmo encontró una solución válida."
+        ),
+        'default_config_label': 'predeterminada',
+
+        'table_headers': ['MÉTODO', 'CONFIGURACIÓN', 'TIEMPO (s)', 'GANANCIA', 'NODOS'],
+
+        'save_dialog_title': 'Guardar informe',
+        'save_filename':      'informe_ia.pdf',
+        'export_success_title':   'Informe exportado',
+        'export_success_message': 'PDF guardado correctamente en:\n{path}',
+        'export_error_title':     'Error al exportar',
+    },
 }
 
 

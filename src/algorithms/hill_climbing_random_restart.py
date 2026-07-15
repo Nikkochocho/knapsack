@@ -16,9 +16,9 @@ TMAX_DEFAULT = 20
 
 def search(start: str, goal: str, graph: dict,
            tmax=TMAX_DEFAULT, t1=None, tf=None, fr=None,
-           initial_speed=None, tempo_limite=None) -> SearchResult:
+           initial_speed=None, time_limit=None) -> SearchResult:
 
-    initial_path = _initial_path(start, goal, tempo_limite=tempo_limite)
+    initial_path = _initial_path(start, goal, time_limit=time_limit)
     if initial_path is None:
         return SearchResult()
 
@@ -37,7 +37,7 @@ def search(start: str, goal: str, graph: dict,
         )
 
     path, value, speed, time_taken = ls.hill_climbing_with_retry(
-        initial_path, initial_value, tmax, speed, tempo_limite=tempo_limite
+        initial_path, initial_value, tmax, speed, time_limit=time_limit
     )
 
     converter = Converter.key_to_super_str if config.MULTIVERSE_MODE else Converter.tuple_to_str
@@ -45,5 +45,5 @@ def search(start: str, goal: str, graph: dict,
         path=[converter(n) for n in path],
         cost=round(float(time_taken), 2),
         depth=len(path) - 1,
-        profit= round((time_taken - initial_value) / tempo_limite * 100, 2),
+        profit= round((time_taken - initial_value) / time_limit * 100, 2),
     )

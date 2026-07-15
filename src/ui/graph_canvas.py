@@ -1,8 +1,8 @@
 """
 ui/graph_canvas.py
 ==================
-Widget de canvas responsável exclusivamente pela renderização do mapa em grid.
-Renderiza um grid 15x15 com células livres e paredes, conforme mostrado nos tilesets.
+Canvas widget exclusively responsible for rendering the grid map.
+Renders a 15x15 grid with free cells and walls, as shown by the tilesets.
 """
 
 
@@ -10,12 +10,13 @@ from    __future__  import annotations
 from    pathlib     import Path
 import  tkinter     as tk
 import  config
+import  i18n
 from    config      import COLORS
 from    PIL         import Image, ImageTk
 from    algorithms.local_search import LocalSearch
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Utilitários de nó
+# Node utilities
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _node_to_rc(node: str) -> tuple[int, int]:
@@ -50,7 +51,7 @@ _TERRAIN_COLOR: dict[str, str] = {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Widget principal
+# Main widget
 # ─────────────────────────────────────────────────────────────────────────────
 
 class GraphCanvas(tk.Canvas):
@@ -61,17 +62,17 @@ class GraphCanvas(tk.Canvas):
     def __init__(self, parent, on_node_picked=None,
                  on_map_nav=None, on_map_switch=None,
                  animation_on=True, **kwargs):
-        """Inicializa o canvas, bindings e estado interno da animação."""
+        """Initialize the canvas, bindings, and internal animation state."""
         super().__init__(parent, bg=COLORS['bg'],
                          highlightthickness=0, **kwargs)
 
         self._fonts: dict = {}
         self._on_node_picked = on_node_picked
-        self._on_map_nav     = on_map_nav      # callback(delta)   — setas manuais
-        self._on_map_switch  = on_map_switch   # callback(map_id)  — troca automática
+        self._on_map_nav     = on_map_nav      # callback(delta)   — manual arrows
+        self._on_map_switch  = on_map_switch   # callback(map_id)  — automatic switch
         self._animation_on   = animation_on
         self._pick_mode: str | None = None
-        
+
         self._render_generation: int = 0
 
         self._tile_imgs:  dict[str, ImageTk.PhotoImage] = {}
@@ -84,46 +85,46 @@ class GraphCanvas(tk.Canvas):
 
         self._cached_cell: int | None = None
 
-        # Estado da animação em curso (necessário para switch mid-animation)
+        # State of the animation in progress (needed for mid-animation switches)
         self._anim_full_path:  list[str] = []
         self._anim_full_start: str = ''
         self._anim_full_goal:  str = ''
-        self._showing_sad = False   # ← nova flag
+        self._showing_sad = False   # ← new flag
 
-        # Rastreia até onde o personagem já chegou por mapa:
-        # {map_id: [nós visitados nesse mapa, em ordem]}
+        # Tracks how far the character has gotten on each map:
+        # {map_id: [nodes visited on that map, in order]}
         self._visited_per_map: dict[int, list[str]] = {}
 
         self.bind('<Configure>', lambda _e: self._reload_tiles() or self.render())
         self.bind('<Button-1>',  self._on_canvas_click)
 
-    # ── API pública ──────────────────────────────────────────────────────────
+    # ── public API ───────────────────────────────────────────────────────────
 
     def set_fonts(self, fonts: dict):
-        """Define o dicionário de fontes usado nos textos do canvas."""
+        """Set the font dictionary used for text drawn on the canvas."""
         self._fonts = fonts
 
     def set_animate(self, value: bool):
-        """Ativa ou desativa o modo de animação do caminho."""
+        """Enable or disable path animation mode."""
         self._animation_on = value
 
     def clear_path(self):
-        """Limpa o histórico de visitas e redesenha o mapa sem caminho."""
+        """Clear the visit history and redraw the map without a path."""
         self._showing_sad = False
         self._visited_per_map = {}
         self.render(path=[])
 
     def set_pick_mode(self, mode: str | None):
-        """Ativa o modo de seleção de nó por clique, alterando o cursor."""
+        """Enable node-picking-by-click mode, changing the cursor accordingly."""
         self._pick_mode = mode
         self.config(cursor='crosshair' if mode else '')
 
     def reset_visited(self):
-        """Cancela animações em curso e apaga o histórico de visitas."""
-        # TODO: Fazer com que sprite retorne à posição do estado original
-        # ao LIMPAR antes de animação ser finalizada
-        # N° de tentativas: 5 ;-;
-        self._cancel_all_anim()  
+        """Cancel any running animations and clear the visit history."""
+        # TODO: Make the sprite return to its original state position
+        # when CLEARING before the animation has finished
+        # Number of attempts: 5 ;-;
+        self._cancel_all_anim()
         self._visited_per_map  = {}
         self._anim_full_path   = []
         self._anim_full_start  = ''
@@ -132,7 +133,7 @@ class GraphCanvas(tk.Canvas):
     # ── assets ───────────────────────────────────────────────────────────────
 
     def _reload_tiles(self):
-        """Recarrega e redimensiona tiles e spritesheets conforme o tamanho atual do canvas."""
+        """Reload and resize tiles and spritesheets to match the current canvas size."""
         cw = self.winfo_width()  or 600
         ch = self.winfo_height() or 480
         cell = self._cell_size(cw, ch, config.GRID_ROWS, config.GRID_COLS)
@@ -163,15 +164,15 @@ class GraphCanvas(tk.Canvas):
         self._sprite_frames    = {}
         self._sprite_frame_idx = {}
 
-        # USADO PRA SPRITES START E GOAL
-        for sheet in ('start_down', 'start_up', 'start_left', 'start_right', 
+        # USED FOR START AND GOAL SPRITES
+        for sheet in ('start_down', 'start_up', 'start_left', 'start_right',
                       'goal_down', 'goal_up', 'goal_left', 'goal_right'):
             frames = self._load_spritesheet(
                 _ROOT / 'assets' / 'sprites' / f'{sheet}_sheet.png', cell)
             self._sprite_frames[sheet]    = frames
             self._sprite_frame_idx[sheet] = 0
 
-        # ANIMAÇÃO DE START IDLE
+        # START IDLE ANIMATION
         start_idle_frames = self._load_spritesheet(
             _ROOT / 'assets' / 'sprites' / 'start_idle_sheet.png', cell)
         self._sprite_frames['start_idle']    = start_idle_frames
@@ -182,19 +183,19 @@ class GraphCanvas(tk.Canvas):
         self._sprite_frames['goal_idle']    = goal_idle_frames
         self._sprite_frame_idx['goal_idle'] = 0
 
-        # ANIMAÇÃO DE FINALIZAÇÃO DO CAMINHO
+        # PATH-COMPLETION ANIMATION
         end_frames = self._load_spritesheet(
             _ROOT / 'assets' / 'sprites' / 'end_sheet.png', cell)
         self._sprite_frames['end']    = end_frames
         self._sprite_frame_idx['end'] = 0
 
-        # ANIMAÇÃO DE WARP
+        # WARP ANIMATION
         warp_frames = self._load_spritesheet(
             _ROOT / 'assets' / 'sprites' / 'start_warp_sheet.png', cell)
         self._sprite_frames['start_warp']    = warp_frames
         self._sprite_frame_idx['start_warp'] = 0
 
-        #ANIMAÇÃO DE BAD ENDING
+        # BAD-ENDING ANIMATION
         for sheet in ('sad_start', 'sad_goal'):
             frames = self._load_spritesheet(
                 _ROOT / 'assets' / 'sprites' / f'{sheet}_sheet.png', cell)
@@ -203,7 +204,7 @@ class GraphCanvas(tk.Canvas):
 
     def _load_spritesheet(self, path: Path, cell: int,
                           frame_size: int = 32) -> list[ImageTk.PhotoImage]:
-        """Fatia um spritesheet horizontal em frames individuais redimensionados."""
+        """Slice a horizontal spritesheet into individually resized frames."""
         try:
             sheet    = Image.open(path).convert('RGBA')
             n_frames = sheet.width // frame_size
@@ -219,10 +220,10 @@ class GraphCanvas(tk.Canvas):
         except Exception:
             return []
 
-    # ── clique ───────────────────────────────────────────────────────────────
+    # ── click handling ──────────────────────────────────────────────────────
 
     def _on_canvas_click(self, event):
-        """Converte o clique em coordenadas de grid e notifica o nó selecionado."""
+        """Convert the click into grid coordinates and notify the selected node."""
         if not self._pick_mode:
             return
         grid_map  = config.GRID_MAP
@@ -247,12 +248,12 @@ class GraphCanvas(tk.Canvas):
         if self._on_node_picked:
             self._on_node_picked(role, node)
 
-    # ── cancelamento de animações ─────────────────────────────────────────────
+    # ── animation cancellation ─────────────────────────────────────────────
 
     def _cancel_all_anim(self):
-        """Cancela todos os jobs de animação pendentes."""
-        self._showing_sad = False   # ← limpa ao cancelar
-        self._render_generation += 1 
+        """Cancel all pending animation jobs."""
+        self._showing_sad = False   # ← clear on cancel
+        self._render_generation += 1
         for job_id in list(self._anim_jobs.values()):
             try:
                 self.after_cancel(job_id)
@@ -265,7 +266,7 @@ class GraphCanvas(tk.Canvas):
     def render(self, path: list[str] = None,
             start: str = None, goal: str = None,
             static: bool = False):
-        """Redesenha o mapa ativo, iniciando animação ou renderizando de forma estática."""
+        """Redraw the active map, either starting an animation or rendering statically."""
         self._cancel_all_anim()
         self.delete('all')
 
@@ -278,7 +279,7 @@ class GraphCanvas(tk.Canvas):
             if start_map_id is not None:
                 config._apply_active_map(start_map_id)
 
-        # ── Se há path, sobrescreve com o mapa do primeiro nó ────────────────
+        # ── If there's a path, switch to the first node's map ────────────────
         if (config.MULTIVERSE_MODE and config.MULTIVERSE is not None
                 and path and not static):
             first_map_id = _node_map_id(path[0])
@@ -291,7 +292,7 @@ class GraphCanvas(tk.Canvas):
         grid_cols    = config.GRID_COLS
         terrain_map  = config.TERRAIN_MAP
 
-        # Calcula nós do mapa ativo e posições start/goal
+        # Compute the active map's nodes and the start/goal positions
         if config.MULTIVERSE_MODE:
             active_id  = config.ACTIVE_MAP_ID
             local_path = [n for n in path if _node_map_id(n) == active_id]
@@ -306,7 +307,7 @@ class GraphCanvas(tk.Canvas):
             start_rc   = _node_to_rc(start) if start else None
             goal_rc    = _node_to_rc(goal)  if goal  else None
 
-        # Portais do mapa ativo
+        # Portals on the active map
         portal_cells: set[tuple[int, int]] = set()
         if config.MULTIVERSE_MODE and config.MULTIVERSE is not None:
             from multiverse import portal_cells_of_map
@@ -321,7 +322,7 @@ class GraphCanvas(tk.Canvas):
         self._draw_background(cw, ch)
         self._temp_imgs = []
 
-        # ── Tiles base ────────────────────────────────────────────────────────
+        # ── Base tiles ───────────────────────────────────────────────────────
         for r in range(grid_rows):
             for c in range(grid_cols):
                 rc      = (r, c)
@@ -341,7 +342,7 @@ class GraphCanvas(tk.Canvas):
                     weight=weight, terrain=terrain, idx=idx, path=local_path,
                 )
 
-        # ── Decide modo de exibição ───────────────────────────────────────────
+        # ── Decide the display mode ────────────────────────────────────────
         use_animation = self._animation_on and local_path and not static
 
         if use_animation:
@@ -349,9 +350,9 @@ class GraphCanvas(tk.Canvas):
             self._anim_full_start = start
             self._anim_full_goal  = goal
             self._animate_path(path, cell, ox, oy, start, goal, index=0)
-            
+
         else:
-            # ── Modo estático / navegação manual ─────────────────────────────
+            # ── Static / manual-navigation mode ──────────────────────────────
             active_id = config.ACTIVE_MAP_ID if config.MULTIVERSE_MODE else -1
             visited   = self._visited_per_map.get(active_id, local_path)
 
@@ -378,7 +379,7 @@ class GraphCanvas(tk.Canvas):
             last_visited = visited_this_map[-1] if visited_this_map else None
             last_rc = _node_to_rc(last_visited) if last_visited else None
 
-            # Não renderiza start se ele estiver sobre o goal
+            # Don't render start if it's on top of the goal
             if last_rc and last_rc != goal_rc:
                 if self._sprite_frames.get('start_idle'):
                     self._anim_jobs['start'] = None
@@ -394,7 +395,7 @@ class GraphCanvas(tk.Canvas):
                                         job_key='start', loop=True,
                                         generation=self._render_generation)
 
-            # goal sempre idle
+            # goal is always idle
             if goal_rc and self._sprite_frames.get('goal_idle'):
                 self._anim_jobs['goal'] = None
                 self._play_sprite_loop(goal_rc[0], goal_rc[1], cell, ox, oy,
@@ -406,12 +407,12 @@ class GraphCanvas(tk.Canvas):
             self._draw_map_banner()
             self._draw_nav_arrows(cw, ch)
 
-    # ── Troca de mapa durante animação (sem cancelar after-jobs) ─────────────
+    # ── Map switching mid-animation (without cancelling after-jobs) ──────────
 
     def _switch_map_mid_animation(self, new_map_id: int,
                                   path: list[str],
                                   start: str, goal: str):
-        """Troca o mapa ativo e redesenha os tiles base sem interromper a animação."""
+        """Switch the active map and redraw the base tiles without interrupting the animation."""
 
         if self._on_map_switch:
             self._on_map_switch(new_map_id)
@@ -431,7 +432,7 @@ class GraphCanvas(tk.Canvas):
         self._draw_background(cw, ch)
         self._temp_imgs = []
 
-        # PORTAIS
+        # PORTALS
         portal_cells: set[tuple[int, int]] = set()
         if config.MULTIVERSE is not None:
             from multiverse import portal_cells_of_map
@@ -439,7 +440,7 @@ class GraphCanvas(tk.Canvas):
 
         local_path = [n for n in path if _node_map_id(n) == new_map_id]
 
-        # start/goal globais
+        # global start/goal
         start_rc = (_node_to_rc(start)
                     if _node_map_id(start) == new_map_id else None)
         goal_rc  = (_node_to_rc(goal)
@@ -461,23 +462,23 @@ class GraphCanvas(tk.Canvas):
                     weight=weight, terrain=terrain, idx=idx, path=local_path,
                 )
 
-        self._draw_background_overlay(cw, ch)   # banner e setas por cima
+        self._draw_background_overlay(cw, ch)   # banner and arrows drawn on top
         self._draw_map_banner()
         self._draw_nav_arrows(cw, ch)
 
     def _draw_background_overlay(self, cw, ch):
-        """Placeholder para sobreposição de banner e setas após redesenho mid-animation."""
-        pass  # banner e setas são desenhados separadamente logo após
+        """Placeholder for the banner/arrows overlay after a mid-animation redraw."""
+        pass  # banner and arrows are drawn separately right after
 
-    # ── Engine de animação ────────────────────────────────────────────────────
+    # ── Animation engine ──────────────────────────────────────────────────────
 
     def _animate_path(self, path: list[str], cell: int, ox: int, oy: int,
-              start: str, goal: str, index: int = 0, velocidade_atual: float = None,
-              tempo_acumulado=0.0, generation=None):
-        """Avança o sprite um nó por vez ao longo do caminho, agendando o próximo passo."""
+              start: str, goal: str, index: int = 0, current_speed: float = None,
+              elapsed_time=0.0, generation=None):
+        """Advance the sprite one node at a time along the path, scheduling the next step."""
 
-        if velocidade_atual is None:
-            velocidade_atual = getattr(config, 'LAST_VELOCITY', 1.0)
+        if current_speed is None:
+            current_speed = getattr(config, 'LAST_VELOCITY', 1.0)
 
         if generation is None:
             generation = self._render_generation
@@ -485,7 +486,7 @@ class GraphCanvas(tk.Canvas):
             return
 
         if index >= len(path):
-            if path and config.GOAL_REACHED:   # ← checa flag
+            if path and config.GOAL_REACHED:   # ← check flag
                 self.delete('sprite_start')
                 self.delete('sprite_goal')
                 for name in ('start', 'goal'):
@@ -502,7 +503,7 @@ class GraphCanvas(tk.Canvas):
         node   = path[index]
         map_id = _node_map_id(node)
 
-        # ── Detecção de mudança de mapa ───────────────────────────────────────
+        # ── Map-change detection ──────────────────────────────────────────────
         current_map = config.ACTIVE_MAP_ID if config.MULTIVERSE_MODE else None
         if config.MULTIVERSE_MODE and map_id is not None and map_id != current_map:
             visited_so_far = [n for n in path[:index]
@@ -513,83 +514,83 @@ class GraphCanvas(tk.Canvas):
                 pr, pc, cell, ox, oy,
                 path, start, goal, index,
                 repeats=3,
-                tempo_acumulado=tempo_acumulado   # ← propaga
+                elapsed_time=elapsed_time   # ← propagate
             )
             return
 
         r, c = _node_to_rc(node)
 
-        # ── Calcula delay e checa limite ANTES de desenhar ───────────────────
-        w = config.MULTIVERSE.maps[config.ACTIVE_MAP_ID].grid_weights if config.MULTIVERSE_MODE else config.GRID_WEIGHTS
-        peso = w[r][c] or 1.0
-        tm = config.TERRAIN_MAP
-        terreno = tm[r][c] if tm else None
-        fator = config.FATORES.get(terreno.name, 1.0) if terreno else 1.0
+        # ── Compute the delay and check the limit BEFORE drawing ─────────────
+        weights     = config.MULTIVERSE.maps[config.ACTIVE_MAP_ID].grid_weights if config.MULTIVERSE_MODE else config.GRID_WEIGHTS
+        weight      = weights[r][c] or 1.0
+        terrain_map = config.TERRAIN_MAP
+        terrain     = terrain_map[r][c] if terrain_map else None
+        factor      = config.FATORES.get(terrain.name, 1.0) if terrain else 1.0
 
-        delay = round((peso / velocidade_atual) * 1000)
+        delay = round((weight / current_speed) * 1000)
         delay = max(50, min(delay, 2000))
 
-        tempo_acumulado += delay / 1000
-        tempo_limite = getattr(config, 'TEMPO_LIMITE', 0.0)
+        elapsed_time += delay / 1000
+        time_limit = getattr(config, 'TIME_LIMIT', 0.0)
 
-        # ── NOVO: checa se o caminho restante vai estourar ──────────────────
-        tempo_restante = 0.0
-        vel_sim = velocidade_atual
-        for no in path[index + 1:]:
+        # ── NEW: check whether the remaining path would exceed the limit ────
+        remaining_time = 0.0
+        sim_speed = current_speed
+        for node_sim in path[index + 1:]:
             if config.MULTIVERSE_MODE:
-                mid = _node_map_id(no)
-                sr, sc = _node_to_rc(no)
-                w_sim  = config.MULTIVERSE.maps[mid].grid_weights
-                tm_sim = config.MULTIVERSE.maps[mid].terrain_map
+                mid = _node_map_id(node_sim)
+                sr, sc = _node_to_rc(node_sim)
+                weights_sim     = config.MULTIVERSE.maps[mid].grid_weights
+                terrain_map_sim = config.MULTIVERSE.maps[mid].terrain_map
             else:
-                sr, sc = _node_to_rc(no)
-                w_sim  = config.GRID_WEIGHTS
-                tm_sim = config.TERRAIN_MAP
+                sr, sc = _node_to_rc(node_sim)
+                weights_sim     = config.GRID_WEIGHTS
+                terrain_map_sim = config.TERRAIN_MAP
 
-            peso_sim    = w_sim[sr][sc] or 1.0
-            terreno_sim = tm_sim[sr][sc] if tm_sim else None
-            fator_sim   = config.FATORES.get(terreno_sim.name, 1.0) if terreno_sim else 1.0
+            weight_sim  = weights_sim[sr][sc] or 1.0
+            terrain_sim = terrain_map_sim[sr][sc] if terrain_map_sim else None
+            factor_sim  = config.FATORES.get(terrain_sim.name, 1.0) if terrain_sim else 1.0
 
-            d = round((peso_sim / vel_sim) * 1000)
+            d = round((weight_sim / sim_speed) * 1000)
             d = max(50, min(d, 2000))
-            tempo_restante += d / 1000
+            remaining_time += d / 1000
 
-            vel_sim = vel_sim * fator_sim
-            vel_sim = max(config.VELOCIDADE_MIN, min(vel_sim, config.VELOCIDADE_MAX))
+            sim_speed = sim_speed * factor_sim
+            sim_speed = max(config.VELOCIDADE_MIN, min(sim_speed, config.VELOCIDADE_MAX))
 
-        vai_estourar = (
-            tempo_limite
-            and (tempo_acumulado + tempo_restante) > tempo_limite
+        will_exceed_limit = (
+            time_limit
+            and (elapsed_time + remaining_time) > time_limit
             and not config.GOAL_REACHED
         )
 
-        if not config.GOAL_REACHED and ( (tempo_limite and tempo_acumulado > tempo_limite) or (index == len(path) - 1) ):            
-            # ── CANCELAR jobs pendentes ANTES de incrementar a geração ──
+        if not config.GOAL_REACHED and ( (time_limit and elapsed_time > time_limit) or (index == len(path) - 1) ):
+            # ── CANCEL pending jobs BEFORE bumping the generation ──
             for key, job in list(self._anim_jobs.items()):
                 if job is not None:
                     self.after_cancel(job)
             self._anim_jobs.clear()
 
-            # ── Agora invalida a geração (novos afters ignorarão) ──
+            # ── Now invalidate the generation (new afters will be ignored) ──
             self._render_generation += 1
             new_gen = self._render_generation
 
-            # ── Limpa TODOS os sprites de movimento ──
+            # ── Clear ALL movement sprites ──
             self.delete('sprite_start')
             self.delete('sprite_goal')
 
-            # ── Repinta o tile do nó atual como caminho (não deixa "buraco") ──
-            tm = config.TERRAIN_MAP
+            # ── Repaint the current node's tile as part of the path (no "hole") ──
+            terrain_map = config.TERRAIN_MAP
             self._draw_tile(
                 r, c, cell, ox, oy,
                 wall=False, in_path=True,
                 is_start=False, is_goal=False, is_portal=False,
                 weight=1,
-                terrain=(tm[r][c] if tm else None),
+                terrain=(terrain_map[r][c] if terrain_map else None),
                 idx=index, path=path,
             )
 
-            # ── Repinta o tile anterior também, se existir ──
+            # ── Repaint the previous tile too, if it exists ──
             if index > 0:
                 prev_node = path[index - 1]
                 prev_map_id = _node_map_id(prev_node)
@@ -600,7 +601,7 @@ class GraphCanvas(tk.Canvas):
                         wall=False, in_path=True,
                         is_start=False, is_goal=False, is_portal=False,
                         weight=1,
-                        terrain=(tm[pr][pc] if tm else None),
+                        terrain=(terrain_map[pr][pc] if terrain_map else None),
                         idx=index - 1, path=path,
                     )
 
@@ -623,31 +624,31 @@ class GraphCanvas(tk.Canvas):
             return
         # ────────────────────────────────────────────────────────────────────
 
-        # Pinta tile "percorrido" no nó anterior (se do mesmo mapa)
+        # Paint the "traveled" tile on the previous node (if on the same map)
         if index > 0:
             prev_node   = path[index - 1]
             prev_map_id = _node_map_id(prev_node)
             if prev_map_id == (config.ACTIVE_MAP_ID if config.MULTIVERSE_MODE else None):
                 pr, pc = _node_to_rc(prev_node)
-                tm = config.TERRAIN_MAP
+                terrain_map = config.TERRAIN_MAP
                 self._draw_tile(
                     pr, pc, cell, ox, oy,
                     wall=False, in_path=True,
                     is_start=False, is_goal=False, is_portal=False,
                     weight=1,
-                    terrain=(tm[pr][pc] if tm else None),
+                    terrain=(terrain_map[pr][pc] if terrain_map else None),
                     idx=index - 1, path=path,
                 )
             self.delete('sprite_start')
 
-        # Registra visita ao nó atual
+        # Record the visit to the current node
         active_id = config.ACTIVE_MAP_ID if config.MULTIVERSE_MODE else -1
         if active_id not in self._visited_per_map:
             self._visited_per_map[active_id] = []
         if node not in self._visited_per_map[active_id]:
             self._visited_per_map[active_id].append(node)
 
-        # Desenha sprite do personagem na posição atual
+        # Draw the character sprite at its current position
         x1, y1     = ox + c * cell, oy + r * cell
         sheet_name = self._start_direction(index, path, 'start')
         n_frames   = max(len(self._sprite_frames.get(sheet_name, [1])), 1)
@@ -664,19 +665,19 @@ class GraphCanvas(tk.Canvas):
         self.tag_raise('nav_prev')
         self.tag_raise('nav_next')
 
-        proxima_vel = velocidade_atual * fator
-        proxima_vel = max(config.VELOCIDADE_MIN, min(proxima_vel, config.VELOCIDADE_MAX))
+        next_speed = current_speed * factor
+        next_speed = max(config.VELOCIDADE_MIN, min(next_speed, config.VELOCIDADE_MAX))
 
         job = self.after(delay, lambda g=generation: self._animate_path(
-            path, cell, ox, oy, start, goal, index + 1, proxima_vel,
-            tempo_acumulado, g))
+            path, cell, ox, oy, start, goal, index + 1, next_speed,
+            elapsed_time, g))
         self._anim_jobs['path_walk'] = job
-    
+
     def _play_warp_then_switch(self, r, c, cell, ox, oy,
                             path, start, goal, index,
                             repeats=3, frame_idx=0, plays_done=0,
-                            generation=None, tempo_acumulado=0.0): 
-        """Reproduz a animação de warp no portal e, ao término, aciona a troca de mapa."""
+                            generation=None, elapsed_time=0.0):
+        """Play the portal warp animation, then trigger the map switch once it finishes."""
         if generation is None:
             generation = self._render_generation
         if generation != self._render_generation:
@@ -699,22 +700,22 @@ class GraphCanvas(tk.Canvas):
         if next_frame < len(frames):
             job = self.after(80, lambda: self._play_warp_then_switch(
                 r, c, cell, ox, oy, path, start, goal, index,
-                repeats, next_frame, plays_done, generation, tempo_acumulado))  # ← adiciona
+                repeats, next_frame, plays_done, generation, elapsed_time))  # ← add
         else:
             plays_done += 1
             if plays_done < repeats:
                 job = self.after(80, lambda: self._play_warp_then_switch(
                     r, c, cell, ox, oy, path, start, goal, index,
-                    repeats, 0, plays_done, generation, tempo_acumulado))       # ← adiciona
+                    repeats, 0, plays_done, generation, elapsed_time))       # ← add
             else:
                 job = self.after(80, lambda: self._do_map_switch(
                     path, start, goal, index, cell, ox, oy, generation,
-                    tempo_acumulado))                                            # ← já estava
+                    elapsed_time))                                            # ← already there
 
         self._anim_jobs['path_walk'] = job
 
-    def _do_map_switch(self, path, start, goal, index, cell, ox, oy, generation=None, tempo_acumulado: float = 0.0):
-        """Aplica a troca de mapa e reinicia a animação a partir do nó atual."""
+    def _do_map_switch(self, path, start, goal, index, cell, ox, oy, generation=None, elapsed_time: float = 0.0):
+        """Apply the map switch and resume the animation from the current node."""
         if generation is None:
             generation = self._render_generation
         if generation != self._render_generation:
@@ -733,19 +734,19 @@ class GraphCanvas(tk.Canvas):
     def _play_sprite_loop(self, r, c, cell, ox, oy,
                       sheet, tag, job_key,
                       frame_idx=0, loop=True,
-                      generation: int = 0):  
-        """Reproduz um sprite em loop ou uma vez, agendando cada frame via after()."""
-        # Descarta se a geração mudou
+                      generation: int = 0):
+        """Play a sprite animation once or in a loop, scheduling each frame via after()."""
+        # Discard if the generation has changed
         if generation != self._render_generation:
             return
-        
+
         if frame_idx == 0 and job_key in self._anim_jobs:
             job_id = self._anim_jobs.pop(job_key)
             if job_id is not None:
                 self.after_cancel(job_id)
 
         if job_key not in self._anim_jobs and frame_idx != 0:
-            print(f"[SPRITE] job '{job_key}' morreu no frame {frame_idx}")  # ← temporário
+            print(f"[SPRITE] job '{job_key}' died at frame {frame_idx}")  # ← temporary
             return
 
         frames = self._sprite_frames.get(sheet, [])
@@ -763,16 +764,16 @@ class GraphCanvas(tk.Canvas):
         job = self.after(120, lambda: self._play_sprite_loop(
             r, c, cell, ox, oy, sheet, tag, job_key,
             next_idx, loop,
-            generation))                               
+            generation))
         self._anim_jobs[job_key] = job
 
         self.tag_raise('nav_prev')
         self.tag_raise('nav_next')
-        
-    # ── Direção do sprite ─────────────────────────────────────────────────────
 
-    def _start_direction(self, idx: int, path: list[str], name : str) -> str:
-        """Retorna o nome do spritesheet correspondente à direção de movimento do sprite."""
+    # ── Sprite direction ──────────────────────────────────────────────────────
+
+    def _start_direction(self, idx: int, path: list[str], name: str) -> str:
+        """Return the spritesheet name matching the sprite's movement direction."""
         def delta(a, b):
             ra, ca = _node_to_rc(a)
             rb, cb = _node_to_rc(b)
@@ -788,7 +789,7 @@ class GraphCanvas(tk.Canvas):
         }.get((dr, dc), f'{name}_down')
 
     def _path_rotation(self, idx: int, path: list[str]) -> float:
-        """Retorna o ângulo de rotação do tile de caminho conforme a direção do movimento."""
+        """Return the rotation angle for the path tile, based on movement direction."""
         def delta(a, b):
             ra, ca = _node_to_rc(a)
             rb, cb = _node_to_rc(b)
@@ -801,39 +802,39 @@ class GraphCanvas(tk.Canvas):
     # ── Layout ────────────────────────────────────────────────────────────────
 
     def _cell_size(self, cw, ch, grid_rows, grid_cols):
-        """Calcula o tamanho de célula que melhor ocupa o canvas sem ultrapassar os limites."""
+        """Compute the cell size that best fills the canvas without exceeding its bounds."""
         sx = (cw - 40) // grid_cols
         sy = (ch - 40) // grid_rows
         return max(self._MIN_CELL, min(self._MAX_CELL, sx, sy))
 
     def _origin(self, cw, ch, cell, grid_rows, grid_cols):
-        """Calcula o offset de origem para centralizar o grid no canvas."""
+        """Compute the origin offset needed to center the grid on the canvas."""
         ox = (cw - cell * grid_cols) // 2
         oy = (ch - cell * grid_rows) // 2
         return ox, oy
 
     def _tile_rect(self, r, c, cell, ox, oy):
-        """Retorna as coordenadas do retângulo delimitador de uma célula."""
+        """Return the bounding-box coordinates of a cell."""
         x1 = ox + c * cell
         y1 = oy + r * cell
         return x1, y1, x1 + cell, y1 + cell
 
     def _tile_center(self, r, c, cell, ox, oy):
-        """Retorna o ponto central de uma célula em coordenadas de canvas."""
+        """Return the center point of a cell in canvas coordinates."""
         x1, y1, x2, y2 = self._tile_rect(r, c, cell, ox, oy)
         return (x1 + x2) / 2, (y1 + y2) / 2
 
-    # ── Desenho de tiles ──────────────────────────────────────────────────────
+    # ── Tile drawing ──────────────────────────────────────────────────────────
 
     def _draw_background(self, cw, ch):
-        """Preenche o fundo do canvas com a cor de background."""
+        """Fill the canvas background with the background color."""
         self.create_rectangle(0, 0, cw, ch, fill=COLORS['bg'], outline='')
 
     def _draw_tile(self, r, c, cell, ox, oy,
                    wall, in_path, is_start, is_goal,
                    is_portal=False, weight=1.0, terrain=None,
                    idx=-1, path=None):
-        """Desenha um tile completo: base, overlay de caminho, portal e sprite de start/goal."""
+        """Draw a complete tile: base, path overlay, portal, and start/goal sprite."""
         x1, y1, x2, y2 = self._tile_rect(r, c, cell, ox, oy)
 
         if wall:
@@ -889,7 +890,7 @@ class GraphCanvas(tk.Canvas):
     def _draw_tile_color_fallback(self, x1, y1, x2, y2,
                                   wall, in_path, is_start, is_goal,
                                   is_portal, weight, terrain):
-        """Renderiza o tile com cores sólidas quando os assets de imagem não estão disponíveis."""
+        """Render the tile with solid colors when image assets aren't available."""
         pad = 1
         if wall:
             self.create_rectangle(
@@ -930,7 +931,7 @@ class GraphCanvas(tk.Canvas):
             width=1 if not glow else 2)
 
     def _draw_marker(self, cx, cy, r, color, label):
-        """Desenha um marcador circular com rótulo, usado como fallback de start e goal."""
+        """Draw a labeled circular marker, used as the start/goal fallback."""
         self.create_oval(cx - r, cy - r, cx + r, cy + r,
                          fill=color, outline='')
         f = self._fonts.get('section')
@@ -938,7 +939,7 @@ class GraphCanvas(tk.Canvas):
             self.create_text(cx, cy, text=label, font=f, fill='#ffffff')
 
     def _draw_path_indices(self, path: list[str], cell, ox, oy):
-        """Exibe o índice de cada nó intermediário do caminho sobre o tile correspondente."""
+        """Display the index of each intermediate path node above its tile."""
         f = self._fonts.get('section')
         if not f or cell < 28:
             return
@@ -956,22 +957,22 @@ class GraphCanvas(tk.Canvas):
             self.create_text(bx, by, text=str(idx),
                              font=f, fill='#ffffff')
 
-    # ── Banner e setas de multiverso ──────────────────────────────────────────
+    # ── Multiverse banner and arrows ──────────────────────────────────────────
 
     def _draw_map_banner(self):
-        """Exibe o banner com o identificador e papel do mapa ativo no multiverso."""
+        """Display the banner showing the active multiverse map's id and role."""
         if config.MULTIVERSE is None:
             return
         mv  = config.MULTIVERSE
         mid = config.ACTIVE_MAP_ID
         if mid == mv.start_map:
-            label = f'◈  Mapa {mid}  —  INÍCIO'
+            label = i18n.t('gc_map_start', id=mid)
             color = COLORS['accent']
         elif mid == mv.goal_map:
-            label = f'◈  Mapa {mid}  —  SAÍDA REAL'
+            label = i18n.t('gc_map_goal', id=mid)
             color = COLORS['success']
         else:
-            label = f'◈  Mapa {mid}'
+            label = i18n.t('gc_map_default', id=mid)
             color = COLORS['warning']
         f  = self._fonts.get('section')
         cw = self.winfo_width() or 600
@@ -980,7 +981,7 @@ class GraphCanvas(tk.Canvas):
                              fill=color, anchor='center')
 
     def _draw_nav_arrows(self, cw: int, ch: int):
-        """Desenha os botões de navegação lateral entre mapas do multiverso."""
+        """Draw the side navigation buttons for switching between multiverse maps."""
         if config.MULTIVERSE is None or not self._on_map_nav:
             return
         mv  = config.MULTIVERSE
@@ -1038,6 +1039,6 @@ class GraphCanvas(tk.Canvas):
             self.tag_bind('nav_next', '<Leave>',    _next_leave)
             self.tag_bind('nav_next', '<Button-1>',
                           lambda _e: self._on_map_nav(+1))
-            
+
             self.tag_raise('nav_prev')
             self.tag_raise('nav_next')

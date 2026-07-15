@@ -28,8 +28,8 @@ def handle_initial_solution(app):
     app.result.set_status(i18n.t('status_generating_initial_solution'), COLORS['accent'])
     app.update()
 
-    tempo_limite = app.control.tempo_limite_var.get()
-    path = _initial_path(start, goal, tempo_limite=tempo_limite)
+    time_limit = app.control.time_limit_var.get()
+    path = _initial_path(start, goal, time_limit=time_limit)
 
     if not path:
         app.result.set_status(i18n.t('status_no_path'), COLORS['danger'])

@@ -1,7 +1,7 @@
 """
-algorithms/tempera.py
+algorithms/simulated_annealing.py
 ===================
-Têmpera Simulada (Simulated Annealing).
+Simulated Annealing.
 """
 
 import  config
@@ -17,36 +17,36 @@ FR_DEFAULT = 0.95
 
 def search(start: str, goal: str, graph: dict,
            tmax=None, t1=T1_DEFAULT, tf=TF_DEFAULT, fr=FR_DEFAULT,
-           initial_speed=None, tempo_limite=None) -> SearchResult:
+           initial_speed=None, time_limit=None) -> SearchResult:
 
-    s1 = _initial_path(start, goal, tempo_limite=tempo_limite)
-    if s1 is None:
+    initial_path = _initial_path(start, goal, time_limit=time_limit)
+    if initial_path is None:
         return SearchResult()
 
-    bl = LocalSearch()
+    ls = LocalSearch()
 
-    vel = initial_speed if initial_speed is not None else INITIAL_SPEED
-    v1 = evaluate_path(s1, initial_speed=vel)  # tempo inicial do caminho
+    speed = initial_speed if initial_speed is not None else INITIAL_SPEED
+    initial_value = evaluate_path(initial_path, initial_speed=speed)  # initial path time
 
-    if v1 == float('-inf') or v1 == 0.0:          # ← caminho truncado, não há solução válida
-        conv = Converter.key_to_super_str if config.MULTIVERSE_MODE else Converter.tuple_to_str
-        tempo = LocalSearch.path_time(s1, vel)
+    if initial_value == float('-inf') or initial_value == 0.0:   # ← truncated path, no valid solution
+        converter  = Converter.key_to_super_str if config.MULTIVERSE_MODE else Converter.tuple_to_str
+        time_taken = LocalSearch.path_time(initial_path, speed)
         return SearchResult(
-            path=  [conv(n) for n in s1],
-            cost=  round(float(tempo), 2),
-            depth= len(s1) - 1,
+            path=  [converter(n) for n in initial_path],
+            cost=  round(float(time_taken), 2),
+            depth= len(initial_path) - 1,
             profit= 0.0
         )
 
-    caminho, fitness, vel, tempo = bl.simulated_annealing(
-        s1, v1, t1, tf, fr,
-        vel, tempo_limite=tempo_limite
+    path, value, speed, time_taken = ls.simulated_annealing(
+        initial_path, initial_value, t1, tf, fr,
+        speed, time_limit=time_limit
     )
 
-    conv = Converter.key_to_super_str if config.MULTIVERSE_MODE else Converter.tuple_to_str
+    converter = Converter.key_to_super_str if config.MULTIVERSE_MODE else Converter.tuple_to_str
     return SearchResult(
-        path=[conv(n) for n in caminho],
-        cost=round(float(tempo), 2),
-        depth=len(caminho) - 1,
-        profit= round((tempo - v1) / tempo_limite * 100, 2),
+        path=[converter(n) for n in path],
+        cost=round(float(time_taken), 2),
+        depth=len(path) - 1,
+        profit= round((time_taken - initial_value) / time_limit * 100, 2),
     )

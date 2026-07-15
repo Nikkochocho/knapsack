@@ -407,7 +407,7 @@ class ComparativeWindow(tk.Toplevel):
                     self.update()
                     result = run_search(method=method, start=start_node,
                                         goal=goal_node, graph=graph,
-                                        tempo_limite=config.TEMPO_LIMITE,
+                                        time_limit=config.TIME_LIMIT,
                                         tmax=20, t1=100.0, tf=0.1, fr=0.95,
                                         tp=10, ng=20, tc=0.8, tm=0.1, ig=0.2)
                     costs.append(result.cost)
@@ -434,7 +434,7 @@ class ComparativeWindow(tk.Toplevel):
                     self.update()
                     kwargs = dict(
                         method=method, start=start_node, goal=goal_node,
-                        graph=graph, tempo_limite=config.TEMPO_LIMITE,
+                        graph=graph, time_limit=config.TIME_LIMIT,
                         tmax=pw.get('tmax', tk.IntVar(value=20)).get(),
                         t1=pw.get('t1',  tk.DoubleVar(value=100.0)).get(),
                         tf=pw.get('tf',  tk.DoubleVar(value=0.1)).get(),
@@ -523,7 +523,7 @@ class ResultsWindow(tk.Toplevel):
         h = tk.Frame(self, bg=COLORS['panel'], height=48)
         h.pack(fill='x')
         h.pack_propagate(False)
-        tk.Label(h, text=i18n.t('cw_results_header', limit=config.TEMPO_LIMITE),
+        tk.Label(h, text=i18n.t('cw_results_header', limit=config.TIME_LIMIT),
                 font=self._fonts['title'],
                 bg=COLORS['panel'], fg=COLORS['accent'],
                 ).pack(side='left', padx=20, pady=10)

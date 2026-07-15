@@ -215,7 +215,7 @@ def _build_conclusion(results: list[dict], lang: str) -> str:
         method=best['method'],
         config=best['config'] if best['config'] != '—' else get_text('default_config_label', lang),
         time=f"{best['time']:.3f}",
-        limit=f"{config.TEMPO_LIMITE:.1f}",
+        limit=f"{config.TIME_LIMIT:.1f}",
         gain=f"{best['gain']*100:.1f}",
     )
 
@@ -311,7 +311,7 @@ def export_report(results: list[dict]):
 
     context = get_text(
         'run_config_text', lang,
-        limit=f"{config.TEMPO_LIMITE:.1f}",
+        limit=f"{config.TIME_LIMIT:.1f}",
         n_maps=n_maps,
         start=config.START_NODE,
         goal=config.GOAL_NODE,

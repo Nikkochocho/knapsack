@@ -193,9 +193,9 @@ class ControlPanel(tk.Frame):
         cap_frame = tk.Frame(self._inner, bg=COLORS['panel'])
         cap_frame.pack(padx=16, pady=(0, 4), fill='x')
         self._label(cap_frame, 'cp_label_time_limit').pack(anchor='w')
-        self.tempo_limite_var = tk.DoubleVar(value=10.0)
+        self.time_limit_var = tk.DoubleVar(value=10.0)
         tk.Spinbox(cap_frame, from_=0.1, to=9999.0, increment=0.5,
-                   textvariable=self.tempo_limite_var, width=8, format='%.1f',
+                   textvariable=self.time_limit_var, width=8, format='%.1f',
                    font=self._fonts['mono'],
                    bg=COLORS['node_default'], fg=COLORS['text'],
                    buttonbackground=COLORS['panel_border'],
@@ -425,7 +425,7 @@ class ControlPanel(tk.Frame):
             t1=self._t1_var.get(),
             tf=self._tf_var.get(),
             fr=self._fr_var.get(),
-            tempo_limite=self.tempo_limite_var.get(),
+            time_limit=self.time_limit_var.get(),
             # ── GA ──────────────────────────────
             tp=self._tp_var.get(),
             ng=self._ng_var.get(),

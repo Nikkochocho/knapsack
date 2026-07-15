@@ -12,8 +12,8 @@ from    algorithms.converter import Converter
 INITIAL_SPEED = 100.0
 
 
-def evaluate_path(path: list, initial_speed: float = None, tempo_limite: float = None) -> float:
-    """Compute the total time of path `path`, returning -inf if it exceeds tempo_limite."""
+def evaluate_path(path: list, initial_speed: float = None, time_limit: float = None) -> float:
+    """Compute the total time of path `path`, returning -inf if it exceeds time_limit."""
     speed = initial_speed if initial_speed is not None else INITIAL_SPEED
 
     total_time = 0.0
@@ -39,15 +39,15 @@ def evaluate_path(path: list, initial_speed: float = None, tempo_limite: float =
         speed = speed * factor
         speed = max(config.VELOCIDADE_MIN, min(speed, config.VELOCIDADE_MAX))
 
-    if tempo_limite is not None and total_time > tempo_limite:
+    if time_limit is not None and total_time > time_limit:
         return float('-inf')
 
     return total_time
 
 
-def _initial_path(start: str, goal: str, tempo_limite: float = None) -> list | None:
+def _initial_path(start: str, goal: str, time_limit: float = None) -> list | None:
     """Simple BFS to generate a valid initial solution.
-    If tempo_limite is given and the full path exceeds it, returns the
+    If time_limit is given and the full path exceeds it, returns the
     prefix up to the last node within the limit (an incomplete path).
     """
     if config.MULTIVERSE_MODE:
@@ -73,12 +73,12 @@ def _initial_path(start: str, goal: str, tempo_limite: float = None) -> list | N
         path = queue.popleft()
         node = path[-1]
         if node == goal_node:
-            if tempo_limite is None:
+            if time_limit is None:
                 return path
-            fitness = evaluate_path(path, tempo_limite=tempo_limite)
+            fitness = evaluate_path(path, time_limit=time_limit)
             if fitness != float('-inf'):
                 return path
-            return _truncate_to_limit(path, tempo_limite)
+            return _truncate_to_limit(path, time_limit)
 
         for neighbor in neighbors(node):
             if neighbor not in visited:
@@ -88,8 +88,8 @@ def _initial_path(start: str, goal: str, tempo_limite: float = None) -> list | N
     return None
 
 
-def _truncate_to_limit(path: list, tempo_limite: float) -> list:
-    """Return the prefix of `path` that fits within tempo_limite."""
+def _truncate_to_limit(path: list, time_limit: float) -> list:
+    """Return the prefix of `path` that fits within time_limit."""
     speed        = INITIAL_SPEED
     time_elapsed = 0.0
 
@@ -110,7 +110,7 @@ def _truncate_to_limit(path: list, tempo_limite: float) -> list:
         delay = max(50, min(round((weight / speed) * 1000), 2000))
         time_elapsed += delay / 1000
 
-        if time_elapsed > tempo_limite:
+        if time_elapsed > time_limit:
             return path[:idx] if idx > 1 else path[:1]
 
         speed = max(config.VELOCIDADE_MIN, min(speed * factor, config.VELOCIDADE_MAX))

@@ -9,7 +9,7 @@ from search_result import SearchResult
 
 # ── algorithm imports ──────────────────────────────────────────────────────
 
-from algorithms.hill_climbing                import search as hill_climbing_search
+from algorithms.hill_climbing               import search as hill_climbing_search
 from algorithms.hill_climbing_random_restart import search as hill_climbing_random_restart_search
 from algorithms.simulated_annealing          import search as simulated_annealing_search
 from algorithms.ga                           import search as ga_search
@@ -36,7 +36,7 @@ def run_search(method: str, start: str, goal: str,
                t1: float = 100.0,
                tf: float = 0.1,
                fr: float = 0.95,
-               tempo_limite: float = 10.0,
+               time_limit: float = 10.0,
                tp: int = 10,
                ng: int = 20,
                tc: float = 0.8,
@@ -52,14 +52,14 @@ def run_search(method: str, start: str, goal: str,
     kwargs = dict(start=start, goal=goal, graph=graph)
 
     if method in LOCAL_SEARCH_METHODS:
-        kwargs['tmax']         = tmax
-        kwargs['t1']           = t1
-        kwargs['tf']           = tf
-        kwargs['fr']           = fr
-        kwargs['tempo_limite'] = tempo_limite
+        kwargs['tmax']       = tmax
+        kwargs['t1']         = t1
+        kwargs['tf']         = tf
+        kwargs['fr']         = fr
+        kwargs['time_limit'] = time_limit
 
     if method == 'Genetic Algorithm':
-        kwargs['tempo_limite'] = tempo_limite  # ← knapsack's C_MAX
+        kwargs['time_limit'] = time_limit  # ← knapsack's C_MAX
         kwargs['tp'] = tp
         kwargs['ng'] = ng
         kwargs['tc'] = tc
