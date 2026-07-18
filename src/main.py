@@ -214,10 +214,15 @@ class SearchApp(tk.Tk):
         btn_row.pack(pady=4)
 
         def _select(lang: str):
+            """Applies the chosen language and refreshes both the main
+            window AND this popup's own widgets immediately — otherwise
+            the popup would only pick up the new language the next time
+            it's opened."""
             self._apply_language(lang)
             win.destroy()
 
         def _lang_button(parent, label: str, lang_code: str):
+            """Draws language button."""
             active = i18n.get_language() == lang_code
             return tk.Button(
                 parent, text=label, font=self._fonts['label'],
